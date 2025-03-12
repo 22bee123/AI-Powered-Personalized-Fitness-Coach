@@ -1,8 +1,13 @@
 import express from "express";
-import OpenAI from "openai";
-
 import dotenv from "dotenv";
-dotenv.config();
+import fetch from "node-fetch";
+import path from "path";
+import { fileURLToPath } from "url";
+
+// Ensure dotenv is configured properly
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 const router = express.Router();
 
@@ -270,10 +275,13 @@ const exerciseData = {
   }
 };
 
-// Initialize OpenAI in the route handler
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Initialize Gemini API configuration
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
+
+if (!GEMINI_API_KEY) {
+  throw new Error("Gemini API key is not defined in environment variables");
+}
 
 // Get available difficulty levels
 router.get("/difficulty-levels", (req, res) => {
@@ -318,7 +326,7 @@ router.get("/workout-plan/:difficulty", (req, res) => {
   });
 });
 
-// Generate personalized workout plan with OpenAI
+// Generate personalized workout plan with Gemini
 router.post("/personalized-plan", async (req, res) => {
   try {
     const { difficulty, goals, preferences, limitations, age, gender, weight, height } = req.body;
@@ -361,26 +369,55 @@ router.post("/personalized-plan", async (req, res) => {
     
     Format the response in a structured, easy-to-follow manner with clear sections.`;
     
-    // Call OpenAI API
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        { 
-          role: "system", 
-          content: "You are an expert fitness coach with years of experience creating personalized workout plans. You provide detailed, actionable fitness advice tailored to individual needs and difficulty preferences."
+    // Call Gemini API with proper error handling
+    try {
+      const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
         },
-        { role: "user", content: prompt }
-      ],
-      temperature: 0.7,
-      max_tokens: 2000,
-    });
-    
-    const fitnessCoachResponse = completion.choices[0].message.content;
-    
-    res.json({ 
-      plan: fitnessCoachResponse,
-      difficulty
-    });
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: prompt
+            }]
+          }]
+        })
+      });
+      
+      // Check if the response is OK
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Gemini API Error Response:", JSON.stringify(errorData, null, 2));
+        return res.status(response.status).json({ 
+          error: `Failed to generate fitness plan: ${errorData.error?.message || 'Unknown error'}`,
+          details: errorData
+        });
+      }
+      
+      const data = await response.json();
+      console.log("Gemini API Response Structure:", JSON.stringify(data, null, 2));
+      
+      // Extract the response text from Gemini API response with proper error handling
+      let fitnessCoachResponse = "Unable to generate fitness plan";
+      
+      if (data && data.candidates && data.candidates.length > 0 && 
+          data.candidates[0].content && data.candidates[0].content.parts && 
+          data.candidates[0].content.parts.length > 0) {
+        fitnessCoachResponse = data.candidates[0].content.parts[0].text;
+      } else if (data && data.error) {
+        console.error("Gemini API Error:", data.error);
+        return res.status(500).json({ error: "Failed to generate fitness plan: " + (data.error.message || JSON.stringify(data.error)) });
+      }
+      
+      res.json({ 
+        plan: fitnessCoachResponse,
+        difficulty
+      });
+    } catch (fetchError) {
+      console.error("Fetch error with Gemini API:", fetchError);
+      return res.status(500).json({ error: `Network error with Gemini API: ${fetchError.message}` });
+    }
     
   } catch (error) {
     console.error("Error with fitness coach assistant:", error);
@@ -420,26 +457,55 @@ router.post("/exercise-recommendations", async (req, res) => {
     4. Common mistakes to avoid
     5. A progression and a regression option`;
     
-    // Call OpenAI API
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        { 
-          role: "system", 
-          content: "You are an expert fitness coach specializing in exercise technique and programming. You provide detailed, safe, and effective exercise recommendations."
+    // Call Gemini API with proper error handling
+    try {
+      const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
         },
-        { role: "user", content: prompt }
-      ],
-      temperature: 0.7,
-      max_tokens: 1500,
-    });
-    
-    const exerciseRecommendations = completion.choices[0].message.content;
-    
-    res.json({ 
-      muscleGroup,
-      recommendations: exerciseRecommendations
-    });
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: prompt
+            }]
+          }]
+        })
+      });
+      
+      // Check if the response is OK
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Gemini API Error Response:", JSON.stringify(errorData, null, 2));
+        return res.status(response.status).json({ 
+          error: `Failed to generate exercise recommendations: ${errorData.error?.message || 'Unknown error'}`,
+          details: errorData
+        });
+      }
+      
+      const data = await response.json();
+      console.log("Gemini API Response for exercise recommendations:", JSON.stringify(data, null, 2));
+      
+      // Extract the response text from Gemini API response with proper error handling
+      let exerciseRecommendations = "Unable to generate exercise recommendations";
+      
+      if (data && data.candidates && data.candidates.length > 0 && 
+          data.candidates[0].content && data.candidates[0].content.parts && 
+          data.candidates[0].content.parts.length > 0) {
+        exerciseRecommendations = data.candidates[0].content.parts[0].text;
+      } else if (data && data.error) {
+        console.error("Gemini API Error:", data.error);
+        return res.status(500).json({ error: "Failed to generate exercise recommendations: " + (data.error.message || JSON.stringify(data.error)) });
+      }
+      
+      res.json({ 
+        muscleGroup,
+        recommendations: exerciseRecommendations
+      });
+    } catch (fetchError) {
+      console.error("Fetch error with Gemini API:", fetchError);
+      return res.status(500).json({ error: `Network error with Gemini API: ${fetchError.message}` });
+    }
     
   } catch (error) {
     console.error("Error with exercise recommendations:", error);
