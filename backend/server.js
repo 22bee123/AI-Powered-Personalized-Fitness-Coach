@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 import cors from "cors";
 import fitnessCoachRoutes from "./routes/fitnessCoach.js";
 
+import connectToMongoDB from "./db/fitnessDataBase.js";
 dotenv.config();
 
 const app = express();
@@ -22,5 +23,6 @@ app.get("/api/health", (req, res) => {
 // Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
+  connectToMongoDB();
   console.log(`Server is running on port ${PORT}`);
 });
