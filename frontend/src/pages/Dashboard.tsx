@@ -1,5 +1,7 @@
 import { useUser } from "@clerk/clerk-react";
 import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
+import WorkoutSchedule from "../components/WorkoutSchedule";
 
 export default function Dashboard() {
   const { user } = useUser();
@@ -102,7 +104,9 @@ export default function Dashboard() {
               <span className="text-gray-600">Intermediate</span>
             </div>
           </div>
-          <Button className="w-full mt-4">Start Workout</Button>
+          <Link to="/workout-schedule">
+            <Button className="w-full mt-4">Start Workout</Button>
+          </Link>
         </div>
 
         <div className="bg-white rounded-lg shadow-sm border p-6">
@@ -223,6 +227,20 @@ export default function Dashboard() {
           </div>
           <Button variant="outline" className="w-full mt-4">View Progress</Button>
         </div>
+      </div>
+
+      {/* Workout Schedule Section */}
+      <div className="mt-8">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-bold text-gray-900">My Workout Schedule</h2>
+          <Link to="/workout-schedule" className="text-blue-600 hover:text-blue-800 font-medium flex items-center">
+            View Full Schedule
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-1" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+            </svg>
+          </Link>
+        </div>
+        <WorkoutSchedule />
       </div>
     </div>
   );

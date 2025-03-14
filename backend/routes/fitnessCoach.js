@@ -9,7 +9,8 @@ import {
   getWorkoutPlanById,
   updateWorkoutPlan,
   deleteWorkoutPlan,
-  toggleFavoriteWorkoutPlan
+  toggleFavoriteWorkoutPlan,
+  parseWorkoutPlanOnly
 } from "../Controller/Fitness.controller.js";
 
 const router = express.Router();
@@ -25,6 +26,9 @@ router.post("/personalized-plan", getPersonalizedPlan);
 
 // Get exercise recommendations
 router.post("/exercise-recommendations", getExerciseRecommendations);
+
+// Parse workout plan without saving
+router.post("/parse-workout-plan", parseWorkoutPlanOnly);
 
 // Workout plan management routes
 router.post("/save-workout-plan", saveWorkoutPlan);

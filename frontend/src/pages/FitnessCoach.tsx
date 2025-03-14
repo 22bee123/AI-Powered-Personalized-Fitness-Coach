@@ -113,19 +113,35 @@ export default function FitnessCoach() {
     setLoading(true);
 
     try {
+      // Generate a default plan name based on difficulty and goals
+      const goalSummary = formData.goals ? formData.goals.split(' ').slice(0, 3).join(' ') : '';
+      const defaultPlanName = `${formData.difficulty.charAt(0).toUpperCase() + formData.difficulty.slice(1)} Plan - ${goalSummary}`;
+      setPlanName(defaultPlanName);
+
       const response = await fetch('http://localhost:3000/api/fitness-coach/personalized-plan', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          userId, // Include userId to save the plan
+          name: defaultPlanName // Include a default name
+        }),
       });
 
       const data = await response.json();
       setWorkoutPlan(data.plan);
-      // Generate a default plan name based on difficulty and goals
-      const goalSummary = formData.goals ? formData.goals.split(' ').slice(0, 3).join(' ') : '';
-      setPlanName(`${formData.difficulty.charAt(0).toUpperCase() + formData.difficulty.slice(1)} Plan - ${goalSummary}`);
+      
+      // If the plan was saved successfully, add it to the saved plans list
+      if (data.savedPlan) {
+        console.log('Plan saved automatically:', data.savedPlan);
+        setSavedPlans(prev => [data.savedPlan, ...prev]);
+        // Show success message
+        setShowSavedMessage(true);
+        setTimeout(() => setShowSavedMessage(false), 3000);
+      }
+      
       setStep(3);
     } catch (error) {
       console.error('Error generating workout plan:', error);
@@ -141,6 +157,21 @@ export default function FitnessCoach() {
     setSavingPlan(true);
     
     try {
+      // First, get the parsed plan data from the backend
+      const parseResponse = await fetch('http://localhost:3000/api/fitness-coach/parse-workout-plan', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          rawPlan: workoutPlan
+        }),
+      });
+      
+      const parseData = await parseResponse.json();
+      const parsedPlan = parseData.parsedPlan;
+      
+      // Now save the workout plan with the parsed data
       const response = await fetch('http://localhost:3000/api/fitness-coach/save-workout-plan', {
         method: 'POST',
         headers: {
@@ -160,8 +191,14 @@ export default function FitnessCoach() {
             limitations: formData.limitations
           },
           rawPlan: workoutPlan,
-          // Note: In a production app, you would parse the workout plan text to extract structured data
-          // For this example, we're just saving the raw plan
+          // Include the parsed plan data
+          schedule: parsedPlan.schedule || [],
+          exercises: parsedPlan.exercises || [],
+          warmup: parsedPlan.warmup || [],
+          cooldown: parsedPlan.cooldown || [],
+          nutrition: parsedPlan.nutrition || [],
+          recovery: parsedPlan.recovery || [],
+          weekSchedule: parsedPlan.weekSchedule || {}
         }),
       });
 

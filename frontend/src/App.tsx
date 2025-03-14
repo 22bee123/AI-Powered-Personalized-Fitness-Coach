@@ -4,6 +4,7 @@ import LoginPage from "./pages/LoginPage";
 import Navbar from "./components/Navbar";
 import Dashboard from "./pages/Dashboard";
 import FitnessCoach from "./pages/FitnessCoach";
+import WorkoutSchedulePage from "./pages/WorkoutSchedulePage";
 
 export default function App() {
   return (
@@ -38,6 +39,17 @@ export default function App() {
             <>
               <SignedIn>
                 <FitnessCoach />
+              </SignedIn>
+              <SignedOut>
+                <RedirectToSignIn />
+              </SignedOut>
+            </>
+          } />
+          
+          <Route path="/workout-schedule" element={
+            <>
+              <SignedIn>
+                <WorkoutSchedulePage />
               </SignedIn>
               <SignedOut>
                 <RedirectToSignIn />

@@ -42,6 +42,9 @@ export default function Navbar() {
               <Link to="/fitness-coach" className="text-gray-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">
                 Fitness Coach
               </Link>
+              <Link to="/workout-schedule" className="text-gray-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">
+                Workout Schedule
+              </Link>
               <Link to="/workouts" className="text-gray-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">
                 Workouts
               </Link>

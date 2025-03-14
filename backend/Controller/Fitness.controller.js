@@ -322,7 +322,7 @@ const getWorkoutPlan = (req, res) => {
 // Generate personalized workout plan with Gemini
 const getPersonalizedPlan = async (req, res) => {
   try {
-    const { difficulty, goals, preferences, limitations, age, gender, weight, height } = req.body;
+    const { userId, name, difficulty, goals, preferences, limitations, age, gender, weight, height } = req.body;
     
     if (!difficulty) {
       return res.status(400).json({ error: "Difficulty level is required" });
@@ -354,13 +354,67 @@ const getPersonalizedPlan = async (req, res) => {
     }
     
     prompt += `For a ${difficulty} difficulty level, provide:
-    1. A detailed weekly workout schedule
+    1. A detailed weekly workout schedule that includes specific exercises for each day of the week (Monday through Sunday)
     2. Specific exercises with sets, reps, and rest periods
     3. Warm-up and cool-down routines
     4. Nutrition recommendations
     5. Recovery tips
     
-    Format the response in a structured, easy-to-follow manner with clear sections.`;
+    Format the response in a structured, easy-to-follow manner with clear sections.
+    
+    For the weekly schedule, use this exact format:
+    
+    SCHEDULE:
+    Monday: [workout type] - [brief description of focus areas and exercises]
+    Tuesday: [workout type] - [brief description of focus areas and exercises]
+    Wednesday: [workout type] - [brief description of focus areas and exercises]
+    Thursday: [workout type] - [brief description of focus areas and exercises]
+    Friday: [workout type] - [brief description of focus areas and exercises]
+    Saturday: [workout type] - [brief description of focus areas and exercises]
+    Sunday: [workout type] - [brief description of focus areas and exercises]
+    
+    Then, provide a section titled EXERCISES: with a detailed list of all exercises referenced in the schedule. For each exercise, include:
+    
+    EXERCISES:
+    1. [Exercise Name]
+    - Sets: [number]
+    - Reps: [number or range]
+    - Rest: [duration]
+    - Instructions: [brief form instructions]
+    - Muscle Group: [primary muscle group targeted]
+    
+    2. [Exercise Name]
+    - Sets: [number]
+    - Reps: [number or range]
+    - Rest: [duration]
+    - Instructions: [brief form instructions]
+    - Muscle Group: [primary muscle group targeted]
+    
+    Continue for all exercises, making sure to include at least 5-8 exercises for each workout day that isn't a rest day.
+    
+    Then include these additional sections:
+    
+    WARM-UP:
+    - [Warm-up exercise 1] - [duration or reps]
+    - [Warm-up exercise 2] - [duration or reps]
+    - [Continue for 3-5 warm-up exercises]
+    
+    COOL-DOWN:
+    - [Cool-down exercise 1] - [duration]
+    - [Cool-down exercise 2] - [duration]
+    - [Continue for 3-5 cool-down exercises]
+    
+    NUTRITION:
+    - [Nutrition tip 1]
+    - [Nutrition tip 2]
+    - [Continue for 3-5 nutrition tips]
+    
+    RECOVERY:
+    - [Recovery tip 1]
+    - [Recovery tip 2]
+    - [Continue for 3-5 recovery tips]
+    
+    Make sure all exercises are appropriate for the user's fitness level, goals, and any limitations they've mentioned. Be specific and detailed in your recommendations.`;
     
     // Call Gemini API with proper error handling
     try {
@@ -389,7 +443,6 @@ const getPersonalizedPlan = async (req, res) => {
       }
       
       const data = await response.json();
-      console.log("Gemini API Response Structure:", JSON.stringify(data, null, 2));
       
       // Extract the response text from Gemini API response with proper error handling
       let fitnessCoachResponse = "Unable to generate fitness plan";
@@ -403,10 +456,68 @@ const getPersonalizedPlan = async (req, res) => {
         return res.status(500).json({ error: "Failed to generate fitness plan: " + (data.error.message || JSON.stringify(data.error)) });
       }
       
-      res.json({ 
-        plan: fitnessCoachResponse,
-        difficulty
-      });
+      // Parse the response to extract structured data
+      const parsedPlan = parseWorkoutPlan(fitnessCoachResponse);
+      
+      // Save the workout plan to the database if userId is provided
+      if (userId) {
+        try {
+          // Create a new workout plan
+          const workoutPlan = new WorkoutPlan({
+            userId,
+            name: name || `${difficulty.charAt(0).toUpperCase() + difficulty.slice(1)} Workout Plan`,
+            difficulty,
+            userDetails: {
+              age: age || '',
+              gender: gender || '',
+              weight: weight || '',
+              height: height || '',
+              goals: goals || '',
+              preferences: preferences || '',
+              limitations: limitations || ''
+            },
+            rawPlan: fitnessCoachResponse,
+            schedule: parsedPlan.schedule || [],
+            exercises: parsedPlan.exercises || [],
+            warmup: parsedPlan.warmup || [],
+            cooldown: parsedPlan.cooldown || [],
+            nutrition: parsedPlan.nutrition || [],
+            recovery: parsedPlan.recovery || [],
+            weekSchedule: parsedPlan.weekSchedule || {}
+          });
+          
+          // Save the workout plan
+          const savedPlan = await workoutPlan.save();
+          
+          console.log("Workout plan saved successfully:", savedPlan._id);
+          
+          // Return the saved plan
+          return res.json({ 
+            message: "Workout plan generated and saved successfully",
+            plan: fitnessCoachResponse,
+            difficulty,
+            parsedPlan,
+            savedPlan
+          });
+        } catch (saveError) {
+          console.error("Error saving workout plan:", saveError);
+          // Continue to return the generated plan even if saving fails
+          return res.json({ 
+            message: "Workout plan generated but failed to save",
+            error: saveError.message,
+            plan: fitnessCoachResponse,
+            difficulty,
+            parsedPlan
+          });
+        }
+      } else {
+        // Just return the generated plan without saving
+        return res.json({ 
+          plan: fitnessCoachResponse,
+          difficulty,
+          parsedPlan
+        });
+      }
     } catch (fetchError) {
       console.error("Fetch error with Gemini API:", fetchError);
       return res.status(500).json({ error: `Network error with Gemini API: ${fetchError.message}` });
@@ -477,7 +588,6 @@ const getExerciseRecommendations = async (req, res) => {
       }
       
       const data = await response.json();
-      console.log("Gemini API Response for exercise recommendations:", JSON.stringify(data, null, 2));
       
       // Extract the response text from Gemini API response with proper error handling
       let exerciseRecommendations = "Unable to generate exercise recommendations";
@@ -506,6 +616,371 @@ const getExerciseRecommendations = async (req, res) => {
   }
 };
 
+// Parse a workout plan without saving it
+const parseWorkoutPlanOnly = async (req, res) => {
+  try {
+    const { rawPlan } = req.body;
+    
+    if (!rawPlan) {
+      return res.status(400).json({ error: "Raw plan is required" });
+    }
+    
+    // Parse the workout plan
+    const parsedPlan = parseWorkoutPlan(rawPlan);
+    
+    res.json({
+      parsedPlan
+    });
+  } catch (error) {
+    console.error("Error parsing workout plan:", error);
+    res.status(500).json({ error: "Failed to parse workout plan" });
+  }
+};
+
+// Helper function to parse the workout plan text into structured data
+const parseWorkoutPlan = (rawPlan) => {
+  const result = {
+    schedule: [],
+    exercises: [],
+    warmup: [],
+    cooldown: [],
+    nutrition: [],
+    recovery: [],
+    weekSchedule: {
+      Monday: createDefaultDayWorkout('Monday'),
+      Tuesday: createDefaultDayWorkout('Tuesday'),
+      Wednesday: createDefaultDayWorkout('Wednesday'),
+      Thursday: createDefaultDayWorkout('Thursday'),
+      Friday: createDefaultDayWorkout('Friday'),
+      Saturday: createDefaultDayWorkout('Saturday'),
+      Sunday: createDefaultDayWorkout('Sunday')
+    }
+  };
+  
+  // Helper function to create a default day workout
+  function createDefaultDayWorkout(day) {
+    return {
+      day: day,
+      focus: 'Rest',
+      description: 'Rest day',
+      workoutType: 'rest',
+      exercises: [],
+      isRestDay: true
+    };
+  }
+  
+  // Helper function to clean markdown formatting and map workout types to valid enum values
+  function cleanWorkoutType(workoutType) {
+    // Remove markdown formatting (asterisks)
+    const cleanedType = workoutType.replace(/\*\*/g, '').trim().toLowerCase();
+    
+    // Map to valid enum values
+    if (cleanedType.includes('strength') || cleanedType.includes('resistance')) {
+      return 'strength';
+    } else if (cleanedType.includes('cardio') || cleanedType.includes('aerobic')) {
+      return 'cardio';
+    } else if (cleanedType.includes('hiit') || cleanedType.includes('interval')) {
+      return 'hiit';
+    } else if (cleanedType.includes('flexibility') || cleanedType.includes('mobility') || cleanedType.includes('stretch')) {
+      return 'flexibility';
+    } else if (cleanedType.includes('rest')) {
+      return 'rest';
+    } else if (cleanedType.includes('recovery') || cleanedType.includes('active recovery')) {
+      return 'recovery';
+    } else {
+      return 'other';
+    }
+  }
+  
+  // Parse exercises first so we can reference them in the schedule
+  const exercisesMatch = rawPlan.match(/exercises:?([\s\S]*?)(?:warm[- ]?up:|cool[- ]?down:|nutrition:|recovery:|schedule:|$)/i);
+  if (exercisesMatch && exercisesMatch[1]) {
+    const exercisesText = exercisesMatch[1].trim();
+    
+    // Split by exercise entries (usually separated by blank lines or numbered/bullet points)
+    const exerciseBlocks = exercisesText.split(/\n\s*\n|\n(?=\d+\.|\*|\-\s)/);
+    
+    exerciseBlocks.forEach(block => {
+      if (!block.trim()) return;
+      
+      const nameMatch = block.match(/name:?\s*([^,\n]+)/i) || 
+                       block.match(/^[*-]?\s*(\d+\.\s*)?([^,\n:]+)/);
+      
+      if (nameMatch) {
+        const exercise = {
+          name: (nameMatch[2] || nameMatch[1]).trim()
+        };
+        
+        const setsMatch = block.match(/sets:?\s*(\d+)/i);
+        if (setsMatch) exercise.sets = parseInt(setsMatch[1]);
+        
+        const repsMatch = block.match(/reps:?\s*([^,\n]+)/i);
+        if (repsMatch) exercise.reps = repsMatch[1].trim();
+        
+        const restMatch = block.match(/rest:?\s*([^,\n]+)/i);
+        if (restMatch) exercise.rest = restMatch[1].trim();
+        
+        const durationMatch = block.match(/duration:?\s*([^,\n]+)/i);
+        if (durationMatch) exercise.duration = durationMatch[1].trim();
+        
+        const instructionsMatch = block.match(/instructions:?\s*([^,\n]+(?:\n[^,\n]+)*)/i) || 
+                                 block.match(/form:?\s*([^,\n]+(?:\n[^,\n]+)*)/i);
+        if (instructionsMatch) exercise.instructions = instructionsMatch[1].trim();
+        
+        const muscleGroupMatch = block.match(/muscle group:?\s*([^,\n]+)/i) || 
+                                block.match(/target:?\s*([^,\n]+)/i);
+        if (muscleGroupMatch) exercise.muscleGroup = muscleGroupMatch[1].trim();
+        
+        result.exercises.push(exercise);
+      }
+    });
+  }
+  
+  // Parse schedule
+  const scheduleMatch = rawPlan.match(/schedule:?([\s\S]*?)(?:exercises:|warm[- ]?up:|cool[- ]?down:|nutrition:|recovery:|$)/i);
+  if (scheduleMatch && scheduleMatch[1]) {
+    const scheduleText = scheduleMatch[1].trim();
+    const scheduleLines = scheduleText.split('\n').filter(line => line.trim().length > 0);
+    
+    scheduleLines.forEach(line => {
+      const dayMatch = line.match(/^([A-Za-z]+):\s*(.+?)(?:\s*-\s*|\s*–\s*|\s*:\s*)(.+)$/);
+      
+      if (dayMatch) {
+        const day = dayMatch[1].trim();
+        const workoutType = dayMatch[2].trim();
+        const description = dayMatch[3].trim();
+        
+        // Check if it's a valid day of the week
+        if (['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].includes(day)) {
+          // Extract focus from description
+          let focus = description.split('.')[0].trim();
+          if (!focus) focus = workoutType;
+          
+          // Determine if it's a rest day
+          const isRestDay = workoutType.toLowerCase().includes('rest') || 
+                           description.toLowerCase().includes('rest day');
+          
+          // Clean and map the workout type to a valid enum value
+          const cleanedWorkoutType = cleanWorkoutType(workoutType);
+          
+          // Update the week schedule for this day
+          result.weekSchedule[day] = {
+            day,
+            focus,
+            description,
+            workoutType: cleanedWorkoutType,
+            exercises: [],
+            isRestDay
+          };
+          
+          // Also add to the schedule array for backward compatibility
+          result.schedule.push({
+            day,
+            workouts: [{
+              type: workoutType,
+              description
+            }]
+          });
+        }
+      }
+    });
+  }
+  
+  // Parse warm-up
+  const warmupMatch = rawPlan.match(/warm[- ]?up:?([\s\S]*?)(?:exercises:|cool[- ]?down:|nutrition:|recovery:|schedule:|$)/i);
+  if (warmupMatch && warmupMatch[1]) {
+    const warmupText = warmupMatch[1].trim();
+    const warmupItems = warmupText.split(/\n/).filter(line => line.trim().length > 0);
+    
+    warmupItems.forEach(item => {
+      const cleanItem = item.trim().replace(/^[*-]\s*/, '');
+      
+      // Try to extract name and duration/reps
+      const itemMatch = cleanItem.match(/^([^-]+)(?:-\s*(.+))?$/);
+      if (itemMatch) {
+        const name = itemMatch[1].trim();
+        const details = itemMatch[2] ? itemMatch[2].trim() : '';
+        
+        const warmupExercise = { name };
+        
+        // Check if details contain duration or reps
+        if (details) {
+          if (details.toLowerCase().includes('min') || 
+              details.toLowerCase().includes('sec') || 
+              details.match(/\d+\s*s(?:econds)?/) || 
+              details.match(/\d+\s*m(?:inutes)?/)) {
+            warmupExercise.duration = details;
+          } else {
+            warmupExercise.reps = details;
+          }
+        }
+        
+        result.warmup.push(warmupExercise);
+      }
+    });
+  }
+  
+  // Parse cool-down
+  const cooldownMatch = rawPlan.match(/cool[- ]?down:?([\s\S]*?)(?:exercises:|warm[- ]?up:|nutrition:|recovery:|schedule:|$)/i);
+  if (cooldownMatch && cooldownMatch[1]) {
+    const cooldownText = cooldownMatch[1].trim();
+    const cooldownItems = cooldownText.split(/\n/).filter(line => line.trim().length > 0);
+    
+    cooldownItems.forEach(item => {
+      const cleanItem = item.trim().replace(/^[*-]\s*/, '');
+      
+      // Try to extract name and duration
+      const itemMatch = cleanItem.match(/^([^-]+)(?:-\s*(.+))?$/);
+      if (itemMatch) {
+        const name = itemMatch[1].trim();
+        const duration = itemMatch[2] ? itemMatch[2].trim() : '';
+        
+        result.cooldown.push({
+          name,
+          duration
+        });
+      }
+    });
+  }
+  
+  // Parse nutrition
+  const nutritionMatch = rawPlan.match(/nutrition:?([\s\S]*?)(?:exercises:|warm[- ]?up:|cool[- ]?down:|recovery:|schedule:|$)/i);
+  if (nutritionMatch && nutritionMatch[1]) {
+    const nutritionText = nutritionMatch[1].trim();
+    const nutritionItems = nutritionText.split(/\n/).filter(line => line.trim().length > 0);
+    
+    nutritionItems.forEach(item => {
+      const cleanItem = item.trim().replace(/^[*-]\s*/, '');
+      if (cleanItem) {
+        result.nutrition.push(cleanItem);
+      }
+    });
+  }
+  
+  // Parse recovery
+  const recoveryMatch = rawPlan.match(/recovery:?([\s\S]*?)(?:exercises:|warm[- ]?up:|cool[- ]?down:|nutrition:|schedule:|$)/i);
+  if (recoveryMatch && recoveryMatch[1]) {
+    const recoveryText = recoveryMatch[1].trim();
+    const recoveryItems = recoveryText.split(/\n/).filter(line => line.trim().length > 0);
+    
+    recoveryItems.forEach(item => {
+      const cleanItem = item.trim().replace(/^[*-]\s*/, '');
+      if (cleanItem) {
+        result.recovery.push(cleanItem);
+      }
+    });
+  }
+  
+  // After parsing all exercises and the schedule, associate exercises with each day
+  if (result.exercises.length > 0) {
+    // For each day in the week schedule
+    Object.keys(result.weekSchedule).forEach(day => {
+      const dayWorkout = result.weekSchedule[day];
+      
+      // Skip rest days
+      if (dayWorkout.isRestDay) {
+        return;
+      }
+      
+      // Find exercises that match the day's focus or workout type
+      const matchingExercises = findExercisesForDay(
+        `${dayWorkout.focus} ${dayWorkout.description} ${dayWorkout.workoutType}`, 
+        result.exercises
+      );
+      
+      // Add the matching exercises to the day's workout
+      if (matchingExercises.length > 0) {
+        dayWorkout.exercises = matchingExercises;
+      }
+    });
+  }
+  
+  return result;
+};
+
+// Helper function to find exercises for a specific day
+function findExercisesForDay(description, allExercises) {
+  const descriptionLower = description.toLowerCase();
+  
+  // If it's a rest day, return empty array
+  if (descriptionLower.includes('rest day') && !descriptionLower.includes('exercise')) {
+    return [];
+  }
+  
+  // Look for specific exercise mentions
+  const matchedExercises = allExercises.filter(exercise => 
+    descriptionLower.includes(exercise.name.toLowerCase())
+  );
+  
+  // If we found specific matches, return those
+  if (matchedExercises.length > 0) {
+    return matchedExercises;
+  }
+  
+  // Check for focus areas (upper body, lower body, etc.)
+  const focusMatches = {
+    'upper body': allExercises.filter(e => 
+      ['chest', 'shoulder', 'arm', 'back', 'push-up', 'pull-up', 'bench press', 'row'].some(term => 
+        e.name.toLowerCase().includes(term) || 
+        (e.muscleGroup && e.muscleGroup.toLowerCase().includes(term))
+      )
+    ),
+    'lower body': allExercises.filter(e => 
+      ['leg', 'squat', 'lunge', 'calf', 'deadlift', 'glute', 'hamstring', 'quad'].some(term => 
+        e.name.toLowerCase().includes(term) || 
+        (e.muscleGroup && e.muscleGroup.toLowerCase().includes(term))
+      )
+    ),
+    'core': allExercises.filter(e => 
+      ['core', 'ab', 'plank', 'crunch', 'sit-up', 'twist'].some(term => 
+        e.name.toLowerCase().includes(term) || 
+        (e.muscleGroup && e.muscleGroup.toLowerCase().includes(term))
+      )
+    ),
+    'cardio': allExercises.filter(e => 
+      ['run', 'jog', 'sprint', 'jump', 'burpee', 'cardio', 'jumping jack'].some(term => 
+        e.name.toLowerCase().includes(term) || 
+        (e.muscleGroup && e.muscleGroup.toLowerCase().includes(term))
+      )
+    ),
+    'full body': allExercises.filter(e => 
+      ['full body', 'compound', 'deadlift', 'squat', 'press'].some(term => 
+        e.name.toLowerCase().includes(term) || 
+        (e.muscleGroup && e.muscleGroup.toLowerCase().includes(term))
+      )
+    )
+  };
+  
+  // Check if any focus areas are mentioned in the description
+  for (const [focus, exercises] of Object.entries(focusMatches)) {
+    if (descriptionLower.includes(focus) && exercises.length > 0) {
+      return exercises;
+    }
+  }
+  
+  // Check for specific muscle groups
+  const muscleGroups = [
+    'chest', 'back', 'legs', 'shoulders', 'arms', 'biceps', 
+    'triceps', 'abs', 'core', 'glutes', 'quads', 'hamstrings'
+  ];
+  
+  for (const muscleGroup of muscleGroups) {
+    if (descriptionLower.includes(muscleGroup)) {
+      const muscleExercises = allExercises.filter(e => 
+        e.name.toLowerCase().includes(muscleGroup) || 
+        (e.muscleGroup && e.muscleGroup.toLowerCase().includes(muscleGroup))
+      );
+      
+      if (muscleExercises.length > 0) {
+        return muscleExercises;
+      }
+    }
+  }
+  
+  // If we still don't have matches, return a subset of exercises based on the day
+  return allExercises.slice(0, Math.min(5, allExercises.length));
+}
+
 // Save a workout plan to the database
 const saveWorkoutPlan = async (req, res) => {
   try {
@@ -520,13 +995,28 @@ const saveWorkoutPlan = async (req, res) => {
       warmup, 
       cooldown, 
       nutrition, 
-      recovery 
+      recovery,
+      parsedPlan 
     } = req.body;
 
     // Validate required fields
     if (!userId || !name || !difficulty || !rawPlan) {
       return res.status(400).json({ error: "Missing required fields" });
     }
+
+    // Use parsed data if available, otherwise use the provided data or empty arrays
+    const finalSchedule = parsedPlan?.schedule || schedule || [];
+    const finalExercises = parsedPlan?.exercises || exercises || [];
+    const finalWarmup = parsedPlan?.warmup || warmup || [];
+    const finalCooldown = parsedPlan?.cooldown || cooldown || [];
+    const finalNutrition = parsedPlan?.nutrition || nutrition || [];
+    const finalRecovery = parsedPlan?.recovery || recovery || [];
+
+    // Parse the raw plan to get the week schedule
+    const parsedData = parseWorkoutPlan(rawPlan);
+    const weekSchedule = parsedData.weekSchedule;
+
+    console.log("Saving workout plan with weekSchedule:", JSON.stringify(weekSchedule, null, 2));
 
     // Create a new workout plan
     const workoutPlan = new WorkoutPlan({
@@ -535,12 +1025,13 @@ const saveWorkoutPlan = async (req, res) => {
       difficulty,
       userDetails,
       rawPlan,
-      schedule,
-      exercises,
-      warmup,
-      cooldown,
-      nutrition,
-      recovery
+      schedule: finalSchedule,
+      exercises: finalExercises,
+      warmup: finalWarmup,
+      cooldown: finalCooldown,
+      nutrition: finalNutrition,
+      recovery: finalRecovery,
+      weekSchedule // Add the week schedule to the workout plan
     });
 
     // Save the workout plan
@@ -693,5 +1184,6 @@ export {
   updateWorkoutPlan,
   deleteWorkoutPlan,
   toggleFavoriteWorkoutPlan,
+  parseWorkoutPlanOnly,
   exerciseData
 };
