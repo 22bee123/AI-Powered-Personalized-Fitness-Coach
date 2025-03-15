@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import WorkoutSchedule from "../components/WorkoutSchedule";
 import { useState, useEffect } from "react";
+import { useWorkoutPlan } from "../contexts/WorkoutPlanContext";
 
 // Define interfaces for workout plan data
 interface Workout {
@@ -15,15 +16,29 @@ interface ScheduleItem {
   workouts: Workout[];
 }
 
+// Define the interface for daily workout
+interface DailyWorkout {
+  focus: string;
+  description?: string;
+  workoutType?: string;
+  exercises?: any[];
+  isRestDay?: boolean;
+}
+
+// Define the interface for workout plan with weekSchedule
 interface WorkoutPlan {
   _id?: string;
   name: string;
   difficulty: string;
-  schedule: ScheduleItem[];
+  schedule?: ScheduleItem[];
+  weekSchedule?: {
+    [key: string]: DailyWorkout;
+  };
 }
 
 export default function Dashboard() {
   const { user } = useUser();
+  const { activePlan, loading }: { activePlan: WorkoutPlan | null, loading: boolean } = useWorkoutPlan();
   const [todayWorkout, setTodayWorkout] = useState({
     day: "Loading...",
     focus: "Loading...",
@@ -37,81 +52,67 @@ export default function Dashboard() {
     const today = new Date();
     const currentDay = daysOfWeek[today.getDay()];
     
-    // Mock user ID - in a real app, this would come from authentication
-    const userId = "user123";
-    
-    // Fetch the user's workout plan
-    const fetchTodayWorkout = async () => {
-      try {
-        const response = await fetch(`http://localhost:3000/api/fitness-coach/user-workout-plans/${userId}`);
+    // Update today's workout when active plan changes
+    if (activePlan) {
+      // Find today's workout from the schedule
+      let todaysFocus = "Rest day";
+      let todaysDifficulty = activePlan.difficulty || "Intermediate";
+      
+      if (activePlan.schedule) {
+        const todaySchedule = activePlan.schedule.find(
+          (scheduleItem: ScheduleItem) => scheduleItem.day.toLowerCase() === currentDay.toLowerCase()
+        );
         
-        if (!response.ok) {
-          throw new Error(`Failed to fetch workout plans`);
-        }
-        
-        const data = await response.json();
-        
-        if (data.plans && data.plans.length > 0) {
-          const activePlan: WorkoutPlan = data.plans[0];
+        if (todaySchedule) {
+          // Extract focus from workouts
+          const workoutTypes = todaySchedule.workouts.map((w: Workout) => w.type).join(", ");
+          const workoutDescriptions = todaySchedule.workouts.map((w: Workout) => w.description).join(", ");
           
-          // Find today's workout from the schedule
-          let todaysFocus = "Rest day";
-          let todaysDifficulty = activePlan.difficulty || "Intermediate";
-          
-          if (activePlan.schedule) {
-            const todaySchedule = activePlan.schedule.find(
-              (scheduleItem: ScheduleItem) => scheduleItem.day.toLowerCase() === currentDay.toLowerCase()
-            );
+          if (workoutTypes.toLowerCase().includes("rest") || workoutDescriptions.toLowerCase().includes("rest")) {
+            todaysFocus = "Rest day";
+          } else {
+            // Try to determine focus area
+            const focusAreas = [
+              "Upper Body", "Lower Body", "Core", "Cardio", "Full Body", 
+              "Strength", "Flexibility", "HIIT", "Endurance"
+            ];
             
-            if (todaySchedule) {
-              // Extract focus from workouts
-              const workoutTypes = todaySchedule.workouts.map((w: Workout) => w.type).join(", ");
-              const workoutDescriptions = todaySchedule.workouts.map((w: Workout) => w.description).join(", ");
-              
-              if (workoutTypes.toLowerCase().includes("rest") || workoutDescriptions.toLowerCase().includes("rest")) {
-                todaysFocus = "Rest day";
-              } else {
-                // Try to determine focus area
-                const focusAreas = [
-                  "Upper Body", "Lower Body", "Core", "Cardio", "Full Body", 
-                  "Strength", "Flexibility", "HIIT", "Endurance"
-                ];
-                
-                for (const area of focusAreas) {
-                  if (workoutTypes.includes(area) || workoutDescriptions.includes(area)) {
-                    todaysFocus = area;
-                    break;
-                  }
-                }
-                
-                // If no specific focus found, use the first workout type
-                if (todaysFocus === "Rest day" && todaySchedule.workouts.length > 0) {
-                  todaysFocus = todaySchedule.workouts[0].type;
-                }
+            for (const area of focusAreas) {
+              if (workoutTypes.includes(area) || workoutDescriptions.includes(area)) {
+                todaysFocus = area;
+                break;
               }
             }
+            
+            // If no specific focus found, use the first workout type
+            if (todaysFocus === "Rest day" && todaySchedule.workouts.length > 0) {
+              todaysFocus = todaySchedule.workouts[0].type;
+            }
           }
-          
-          setTodayWorkout({
-            day: currentDay,
-            focus: todaysFocus,
-            duration: "45 minutes", // This could be calculated based on exercises
-            difficulty: todaysDifficulty
-          });
         }
-      } catch (error) {
-        console.error('Error fetching today\'s workout:', error);
-        setTodayWorkout({
-          day: currentDay, // Still show the current day even if there's an error
-          focus: "Upper Body Strength", // Fallback
-          duration: "45 minutes",
-          difficulty: "Intermediate"
-        });
+      } else if (activePlan.weekSchedule && activePlan.weekSchedule[currentDay]) {
+        // Use weekSchedule if available
+        const dayWorkout = activePlan.weekSchedule[currentDay];
+        todaysFocus = dayWorkout.focus;
+        todaysDifficulty = activePlan.difficulty;
       }
-    };
-    
-    fetchTodayWorkout();
-  }, []);
+      
+      setTodayWorkout({
+        day: currentDay,
+        focus: todaysFocus,
+        duration: "45 minutes", // This could be calculated based on exercises
+        difficulty: todaysDifficulty
+      });
+    } else if (!loading) {
+      // If no active plan and not loading, set default values
+      setTodayWorkout({
+        day: currentDay,
+        focus: "No workout plan selected",
+        duration: "45 minutes",
+        difficulty: "Intermediate"
+      });
+    }
+  }, [activePlan, loading]); // Re-run when activePlan changes
   
   return (
     <div className="space-y-6">

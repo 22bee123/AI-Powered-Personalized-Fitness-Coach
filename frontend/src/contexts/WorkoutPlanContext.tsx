@@ -30,19 +30,44 @@ interface DailyWorkout {
   isRestDay: boolean;
 }
 
+interface ParsedScheduleItem {
+  day: string;
+  activities: string;
+  exercises: Exercise[];
+}
+
 interface WorkoutPlan {
   _id?: string;
   name: string;
   difficulty: string;
+  userDetails?: {
+    age: string;
+    gender: string;
+    weight: string;
+    height: string;
+    goals: string;
+    preferences: string;
+    limitations: string;
+  };
+  rawPlan?: string;
   schedule: ScheduleItem[];
+  exercises: Exercise[];
+  warmup?: {
+    name: string;
+    duration?: string;
+    reps?: string;
+  }[];
+  cooldown?: {
+    name: string;
+    duration: string;
+  }[];
+  nutrition?: string[];
+  recovery?: string[];
+  createdAt?: string;
+  isFavorite?: boolean;
+  parsedSchedule?: ParsedScheduleItem[];
   weekSchedule?: {
-    Monday: DailyWorkout;
-    Tuesday: DailyWorkout;
-    Wednesday: DailyWorkout;
-    Thursday: DailyWorkout;
-    Friday: DailyWorkout;
-    Saturday: DailyWorkout;
-    Sunday: DailyWorkout;
+    [key: string]: DailyWorkout;
   };
 }
 
