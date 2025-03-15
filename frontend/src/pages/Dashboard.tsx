@@ -2,9 +2,116 @@ import { useUser } from "@clerk/clerk-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import WorkoutSchedule from "../components/WorkoutSchedule";
+import { useState, useEffect } from "react";
+
+// Define interfaces for workout plan data
+interface Workout {
+  type: string;
+  description: string;
+}
+
+interface ScheduleItem {
+  day: string;
+  workouts: Workout[];
+}
+
+interface WorkoutPlan {
+  _id?: string;
+  name: string;
+  difficulty: string;
+  schedule: ScheduleItem[];
+}
 
 export default function Dashboard() {
   const { user } = useUser();
+  const [todayWorkout, setTodayWorkout] = useState({
+    day: "Loading...",
+    focus: "Loading...",
+    duration: "45 minutes",
+    difficulty: "Intermediate"
+  });
+  
+  useEffect(() => {
+    // Get current day of the week
+    const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const today = new Date();
+    const currentDay = daysOfWeek[today.getDay()];
+    
+    // Mock user ID - in a real app, this would come from authentication
+    const userId = "user123";
+    
+    // Fetch the user's workout plan
+    const fetchTodayWorkout = async () => {
+      try {
+        const response = await fetch(`http://localhost:3000/api/fitness-coach/user-workout-plans/${userId}`);
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch workout plans`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.plans && data.plans.length > 0) {
+          const activePlan: WorkoutPlan = data.plans[0];
+          
+          // Find today's workout from the schedule
+          let todaysFocus = "Rest day";
+          let todaysDifficulty = activePlan.difficulty || "Intermediate";
+          
+          if (activePlan.schedule) {
+            const todaySchedule = activePlan.schedule.find(
+              (scheduleItem: ScheduleItem) => scheduleItem.day.toLowerCase() === currentDay.toLowerCase()
+            );
+            
+            if (todaySchedule) {
+              // Extract focus from workouts
+              const workoutTypes = todaySchedule.workouts.map((w: Workout) => w.type).join(", ");
+              const workoutDescriptions = todaySchedule.workouts.map((w: Workout) => w.description).join(", ");
+              
+              if (workoutTypes.toLowerCase().includes("rest") || workoutDescriptions.toLowerCase().includes("rest")) {
+                todaysFocus = "Rest day";
+              } else {
+                // Try to determine focus area
+                const focusAreas = [
+                  "Upper Body", "Lower Body", "Core", "Cardio", "Full Body", 
+                  "Strength", "Flexibility", "HIIT", "Endurance"
+                ];
+                
+                for (const area of focusAreas) {
+                  if (workoutTypes.includes(area) || workoutDescriptions.includes(area)) {
+                    todaysFocus = area;
+                    break;
+                  }
+                }
+                
+                // If no specific focus found, use the first workout type
+                if (todaysFocus === "Rest day" && todaySchedule.workouts.length > 0) {
+                  todaysFocus = todaySchedule.workouts[0].type;
+                }
+              }
+            }
+          }
+          
+          setTodayWorkout({
+            day: currentDay,
+            focus: todaysFocus,
+            duration: "45 minutes", // This could be calculated based on exercises
+            difficulty: todaysDifficulty
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching today\'s workout:', error);
+        setTodayWorkout({
+          day: currentDay, // Still show the current day even if there's an error
+          focus: "Upper Body Strength", // Fallback
+          duration: "45 minutes",
+          difficulty: "Intermediate"
+        });
+      }
+    };
+    
+    fetchTodayWorkout();
+  }, []);
   
   return (
     <div className="space-y-6">
@@ -49,7 +156,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold text-gray-800">Today's Workout</h3>
             <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">
-              Recommended
+              {todayWorkout.day}
             </span>
           </div>
           <div className="mt-4 space-y-3">
@@ -70,7 +177,7 @@ export default function Dashboard() {
                 <line x1="10" y1="1" x2="10" y2="4"></line>
                 <line x1="14" y1="1" x2="14" y2="4"></line>
               </svg>
-              <span className="text-gray-600">Upper Body Strength</span>
+              <span className="text-gray-600">{todayWorkout.focus}</span>
             </div>
             <div className="flex items-center">
               <svg 
@@ -86,7 +193,7 @@ export default function Dashboard() {
                 <circle cx="12" cy="12" r="10"></circle>
                 <polyline points="12 6 12 12 16 14"></polyline>
               </svg>
-              <span className="text-gray-600">45 minutes</span>
+              <span className="text-gray-600">{todayWorkout.duration}</span>
             </div>
             <div className="flex items-center">
               <svg 
@@ -101,7 +208,7 @@ export default function Dashboard() {
               >
                 <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path>
               </svg>
-              <span className="text-gray-600">Intermediate</span>
+              <span className="text-gray-600">{todayWorkout.difficulty}</span>
             </div>
           </div>
           <Link to="/workout-schedule">
@@ -162,7 +269,8 @@ export default function Dashboard() {
                 strokeLinejoin="round" 
                 className="w-5 h-5 text-green-600 mr-2"
               >
-                <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path>
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
               </svg>
               <span className="text-gray-600">5 meals per day</span>
             </div>
