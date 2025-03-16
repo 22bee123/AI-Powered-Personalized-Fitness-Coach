@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
-import { useUser } from "@clerk/clerk-react";
+import { useUser, useAuth } from '@clerk/clerk-react';
 
 // Define interfaces for nutrition plan data
 interface Meal {
@@ -60,7 +60,7 @@ interface NutritionPlanContextType {
   setActivePlan: (plan: NutritionPlan) => void;
   loading: boolean;
   error: string | null;
-  fetchUserNutritionPlans: (userId: string) => Promise<void>;
+  fetchUserNutritionPlans: (userId?: string) => Promise<void>;
   fetchNutritionPlansByWorkout: (workoutPlanId: string) => Promise<void>;
 }
 
@@ -140,28 +140,38 @@ const createDefaultNutritionPlan = (userId: string): NutritionPlan => {
 };
 
 export const NutritionPlanProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const { user, isSignedIn, isLoaded } = useUser();
+  const { getToken } = useAuth();
   const [nutritionPlans, setNutritionPlans] = useState<NutritionPlan[]>([]);
   const [activePlan, setActivePlan] = useState<NutritionPlan | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { user } = useUser();
   
   // API base URL
-  const API_BASE_URL = 'http://localhost:3000/api/fitness-coach';
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/fitness-coach';
 
-  const fetchUserNutritionPlans = async (userId: string) => {
-    if (!userId) {
-      console.error('User ID is required to fetch nutrition plans');
-      setError('User ID is required to fetch nutrition plans');
+  const fetchUserNutritionPlans = async (userId?: string) => {
+    // Don't fetch if Clerk hasn't loaded yet or user isn't signed in
+    if (!isLoaded || !isSignedIn || !user) {
+      console.log('User not authenticated, skipping nutrition plan fetch');
+      setLoading(false);
       return;
     }
+    
+    // Use the provided userId or default to the authenticated user's ID
+    const clerkId = userId || user.id;
     
     try {
       setLoading(true);
       setError(null);
       
-      console.log(`NutritionPlanContext: Fetching nutrition plans for user: ${userId}`);
-      const response = await fetch(`${API_BASE_URL}/user-nutrition-plans/${userId}`);
+      console.log(`NutritionPlanContext: Fetching nutrition plans for user: ${clerkId}`);
+      const token = await getToken();
+      const response = await fetch(`${API_BASE_URL}/user-nutrition-plans/${clerkId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       
       if (!response.ok) {
         throw new Error(`Failed to fetch nutrition plans: ${response.status} ${response.statusText}`);
@@ -181,7 +191,7 @@ export const NutritionPlanProvider: React.FC<{ children: ReactNode }> = ({ child
       } else {
         // If no plans exist, create a default one
         console.log('NutritionPlanContext: No nutrition plans found, creating default plan');
-        const defaultPlan = createDefaultNutritionPlan(userId);
+        const defaultPlan = createDefaultNutritionPlan(clerkId);
         setNutritionPlans([defaultPlan]);
         setActivePlan(defaultPlan);
       }
@@ -190,7 +200,7 @@ export const NutritionPlanProvider: React.FC<{ children: ReactNode }> = ({ child
       
       // If there's an error, still create a default plan
       console.log('NutritionPlanContext: Error occurred, creating default plan');
-      const defaultPlan = createDefaultNutritionPlan(userId);
+      const defaultPlan = createDefaultNutritionPlan(clerkId);
       setNutritionPlans([defaultPlan]);
       setActivePlan(defaultPlan);
       
@@ -202,9 +212,14 @@ export const NutritionPlanProvider: React.FC<{ children: ReactNode }> = ({ child
   };
 
   const fetchNutritionPlansByWorkout = async (workoutPlanId: string) => {
+    if (!isLoaded || !isSignedIn || !user) {
+      console.log('User not authenticated, skipping nutrition plan fetch by workout');
+      return;
+    }
+    
     if (!workoutPlanId) {
-      console.error('Workout Plan ID is required to fetch nutrition plans');
-      setError('Workout Plan ID is required to fetch nutrition plans');
+      console.error('Workout Plan ID is required to fetch related nutrition plans');
+      setError('Workout Plan ID is required to fetch related nutrition plans');
       return;
     }
     
@@ -212,71 +227,53 @@ export const NutritionPlanProvider: React.FC<{ children: ReactNode }> = ({ child
       setLoading(true);
       setError(null);
       
-      console.log(`NutritionPlanContext: Fetching nutrition plans for workout: ${workoutPlanId}`);
-      const response = await fetch(`${API_BASE_URL}/nutrition-plans-by-workout/${workoutPlanId}`);
+      console.log(`Fetching nutrition plans for workout plan: ${workoutPlanId}`);
+      const token = await getToken();
+      const response = await fetch(`${API_BASE_URL}/workout-nutrition-plans/${workoutPlanId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       
       if (!response.ok) {
         throw new Error(`Failed to fetch nutrition plans: ${response.status} ${response.statusText}`);
       }
       
       const data = await response.json();
-      console.log('NutritionPlanContext: Nutrition plans by workout data:', {
-        isArray: Array.isArray(data),
-        length: Array.isArray(data) ? data.length : 'not an array',
-        data: data
-      });
       
       if (data && Array.isArray(data) && data.length > 0) {
-        console.log('NutritionPlanContext: Setting nutrition plans from workout data');
         setNutritionPlans(data);
         setActivePlan(data[0]);
       } else {
-        // If no workout-specific plans exist, fetch user's general plans
-        console.log('NutritionPlanContext: No workout-specific plans found, using general plans');
-        if (user?.id) {
-          await fetchUserNutritionPlans(user.id);
-        }
-      }
-    } catch (error) {
-      console.error('NutritionPlanContext: Error fetching nutrition plans by workout:', error);
-      
-      // If there's an error, fall back to user's general plans
-      console.log('NutritionPlanContext: Error occurred, falling back to general plans');
-      if (user?.id) {
-        await fetchUserNutritionPlans(user.id);
-      } else {
-        // If no user is available, create a default plan
-        console.log('NutritionPlanContext: No user available, creating default plan');
-        const defaultPlan = createDefaultNutritionPlan('default_user');
+        // If no plans exist for this workout, use the default one
+        const defaultPlan = createDefaultNutritionPlan(user.id);
+        defaultPlan.workoutPlanId = workoutPlanId;
         setNutritionPlans([defaultPlan]);
         setActivePlan(defaultPlan);
-        setError('Failed to load nutrition plans from server. Using default plan instead.');
       }
+    } catch (error) {
+      console.error('Error fetching nutrition plans by workout:', error);
+      setError('Failed to load nutrition plans for this workout');
     } finally {
-      console.log('NutritionPlanContext: Setting loading to false after workout plan fetch');
       setLoading(false);
     }
   };
 
+  // Initial fetch of nutrition plans when the component mounts
   useEffect(() => {
-    // Fetch nutrition plans when user is available
-    if (user?.id) {
-      console.log('NutritionPlanContext: User ID available, fetching nutrition plans:', user.id);
-      fetchUserNutritionPlans(user.id);
-    } else {
-      // If no user is available yet, set loading to false
-      console.log('NutritionPlanContext: No user ID available, setting loading to false');
-      setLoading(false);
+    console.log('NutritionPlanContext: Initial fetch of nutrition plans');
+    if (isLoaded && isSignedIn && user) {
+      fetchUserNutritionPlans();
     }
-  }, [user]);
+  }, [isLoaded, isSignedIn, user]);
 
   return (
-    <NutritionPlanContext.Provider value={{ 
-      nutritionPlans, 
-      activePlan, 
-      setActivePlan, 
-      loading, 
-      error, 
+    <NutritionPlanContext.Provider value={{
+      nutritionPlans,
+      activePlan,
+      setActivePlan,
+      loading,
+      error,
       fetchUserNutritionPlans,
       fetchNutritionPlansByWorkout
     }}>

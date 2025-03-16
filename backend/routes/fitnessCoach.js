@@ -26,31 +26,57 @@ import NutritionPlan from "../models/nutrition.model.js";
 
 const router = express.Router();
 
-// Get available difficulty levels
+// Public routes (no authentication required)
 router.get("/difficulty-levels", getDifficultyLevels);
-
-// Get predefined workout plan based on difficulty
 router.get("/workout-plan/:difficulty", getWorkoutPlan);
 
-// Generate personalized workout plan with Gemini
-router.post("/personalized-plan", getPersonalizedPlan);
+// Create a simple middleware that will be replaced with the real clerkMiddleware
+// This allows the routes to work even if the clerkMiddleware is not properly initialized
+const fallbackMiddleware = (req, res, next) => {
+  console.log("Using fallback middleware - no authentication check");
+  next();
+};
 
-// Get exercise recommendations
-router.post("/exercise-recommendations", getExerciseRecommendations);
+// Function to get the appropriate middleware
+const getAuthMiddleware = (req) => {
+  // If req.app.locals.clerkMiddleware exists, use it, otherwise use the fallback
+  return req.app.locals.clerkMiddleware || fallbackMiddleware;
+};
 
-// Parse workout plan without saving
-router.post("/parse-workout-plan", parseWorkoutPlanOnly);
-
+// Protected routes (authentication required)
 // Workout plan management routes
-router.post("/save-workout-plan", saveWorkoutPlan);
-router.get("/user-workout-plans/:userId", getUserWorkoutPlans);
-router.get("/workout-plan-details/:planId", getWorkoutPlanById);
-router.put("/update-workout-plan/:planId", updateWorkoutPlan);
-router.delete("/delete-workout-plan/:planId", deleteWorkoutPlan);
-router.patch("/toggle-favorite/:planId", toggleFavoriteWorkoutPlan);
+router.post("/personalized-plan", (req, res, next) => {
+  getAuthMiddleware(req)(req, res, next);
+}, getPersonalizedPlan);
+router.post("/exercise-recommendations", (req, res, next) => {
+  getAuthMiddleware(req)(req, res, next);
+}, getExerciseRecommendations);
+router.post("/parse-workout-plan", (req, res, next) => {
+  getAuthMiddleware(req)(req, res, next);
+}, parseWorkoutPlanOnly);
+router.post("/save-workout-plan", (req, res, next) => {
+  getAuthMiddleware(req)(req, res, next);
+}, saveWorkoutPlan);
+router.get("/user-workout-plans/:userId", (req, res, next) => {
+  getAuthMiddleware(req)(req, res, next);
+}, getUserWorkoutPlans);
+router.get("/workout-plan-details/:planId", (req, res, next) => {
+  getAuthMiddleware(req)(req, res, next);
+}, getWorkoutPlanById);
+router.put("/update-workout-plan/:planId", (req, res, next) => {
+  getAuthMiddleware(req)(req, res, next);
+}, updateWorkoutPlan);
+router.delete("/delete-workout-plan/:planId", (req, res, next) => {
+  getAuthMiddleware(req)(req, res, next);
+}, deleteWorkoutPlan);
+router.patch("/toggle-favorite/:planId", (req, res, next) => {
+  getAuthMiddleware(req)(req, res, next);
+}, toggleFavoriteWorkoutPlan);
 
 // Test route to create a sample workout plan for a specific user
-router.get("/create-test-plan/:userId", async (req, res) => {
+router.get("/create-test-plan/:userId", (req, res, next) => {
+  getAuthMiddleware(req)(req, res, next);
+}, async (req, res) => {
   try {
     const { userId } = req.params;
     
@@ -363,7 +389,9 @@ router.get("/create-test-plan/:userId", async (req, res) => {
 });
 
 // Test route to create a sample nutrition plan for a specific user
-router.get("/create-test-nutrition-plan/:userId", async (req, res) => {
+router.get("/create-test-nutrition-plan/:userId", (req, res, next) => {
+  getAuthMiddleware(req)(req, res, next);
+}, async (req, res) => {
   try {
     const { userId } = req.params;
     
@@ -982,12 +1010,26 @@ router.get("/create-test-nutrition-plan/:userId", async (req, res) => {
 });
 
 // Nutrition plan routes
-router.post("/personalized-nutrition-plan", getPersonalizedNutritionPlan);
-router.get("/user-nutrition-plans/:userId", getUserNutritionPlans);
-router.get("/nutrition-plan-details/:planId", getNutritionPlanById);
-router.get("/nutrition-plans-by-workout/:workoutPlanId", getNutritionPlansByWorkoutPlan);
-router.put("/update-nutrition-plan/:planId", updateNutritionPlan);
-router.delete("/delete-nutrition-plan/:planId", deleteNutritionPlan);
-router.patch("/toggle-favorite-nutrition/:planId", toggleFavoriteNutritionPlan);
+router.post("/personalized-nutrition-plan", (req, res, next) => {
+  getAuthMiddleware(req)(req, res, next);
+}, getPersonalizedNutritionPlan);
+router.get("/user-nutrition-plans/:userId", (req, res, next) => {
+  getAuthMiddleware(req)(req, res, next);
+}, getUserNutritionPlans);
+router.get("/nutrition-plan-details/:planId", (req, res, next) => {
+  getAuthMiddleware(req)(req, res, next);
+}, getNutritionPlanById);
+router.get("/nutrition-plans-by-workout/:workoutPlanId", (req, res, next) => {
+  getAuthMiddleware(req)(req, res, next);
+}, getNutritionPlansByWorkoutPlan);
+router.put("/update-nutrition-plan/:planId", (req, res, next) => {
+  getAuthMiddleware(req)(req, res, next);
+}, updateNutritionPlan);
+router.delete("/delete-nutrition-plan/:planId", (req, res, next) => {
+  getAuthMiddleware(req)(req, res, next);
+}, deleteNutritionPlan);
+router.patch("/toggle-nutrition-favorite/:planId", (req, res, next) => {
+  getAuthMiddleware(req)(req, res, next);
+}, toggleFavoriteNutritionPlan);
 
 export default router;

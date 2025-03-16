@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useNutritionPlan } from '../contexts/NutritionPlanContext';
 import { useWorkoutPlan } from '../contexts/WorkoutPlanContext';
 import NutritionPlanForm from './NutritionPlanForm';
-import { useUser } from '@clerk/clerk-react';
 
 interface Meal {
   name: string;
@@ -27,7 +26,16 @@ export default function NutritionSchedule() {
   const [activeDay, setActiveDay] = useState<string | null>(null);
   const [showNutritionForm, setShowNutritionForm] = useState(false);
   const [localLoading, setLocalLoading] = useState(loading);
-  const { user } = useUser();
+  const [userProfile, setUserProfile] = useState<{
+    gender?: string;
+    weight?: string;
+    height?: string;
+    age?: string;
+    goals?: string;
+  } | null>(null);
+  
+  // Default user ID for development
+  const userId = "user123";
   
   // Debug logging for component state
   console.log('NutritionSchedule: Component rendered with state:', { 
@@ -37,9 +45,26 @@ export default function NutritionSchedule() {
     localLoading,
     error,
     activeDay,
-    userId: user?.id
+    userId,
+    userProfile
   });
   
+  // Fetch user profile data from the active workout plan
+  useEffect(() => {
+    if (activeWorkoutPlan?.userDetails) {
+      console.log('NutritionSchedule: Setting user profile from workout plan:', activeWorkoutPlan.userDetails);
+      setUserProfile({
+        gender: activeWorkoutPlan.userDetails.gender,
+        weight: activeWorkoutPlan.userDetails.weight,
+        height: activeWorkoutPlan.userDetails.height,
+        age: activeWorkoutPlan.userDetails.age,
+        goals: activeWorkoutPlan.userDetails.goals
+      });
+    } else {
+      console.log('NutritionSchedule: No user details available in active workout plan');
+    }
+  }, [activeWorkoutPlan]);
+
   // Use a timeout to prevent getting stuck in loading state
   useEffect(() => {
     if (loading) {
@@ -50,9 +75,9 @@ export default function NutritionSchedule() {
         setLocalLoading(false);
         
         // If we still don't have nutrition plans, try to fetch them again or use default
-        if (nutritionPlans.length === 0 && user?.id) {
+        if (nutritionPlans.length === 0) {
           console.log('NutritionSchedule: No nutrition plans after timeout, trying to fetch again');
-          fetchUserNutritionPlans(user.id);
+          fetchUserNutritionPlans(userId);
         }
       }, 5000);
       
@@ -60,7 +85,7 @@ export default function NutritionSchedule() {
     } else {
       setLocalLoading(false);
     }
-  }, [loading, nutritionPlans.length, user, fetchUserNutritionPlans]);
+  }, [loading, nutritionPlans.length, fetchUserNutritionPlans]);
   
   if (activePlan) {
     console.log('NutritionSchedule: Active plan details:', {
@@ -87,6 +112,12 @@ export default function NutritionSchedule() {
       console.log('NutritionSchedule: No active workout plan available');
     }
   }, [activeWorkoutPlan, fetchNutritionPlansByWorkout]);
+
+  // Initial fetch of nutrition plans
+  useEffect(() => {
+    console.log('NutritionSchedule: Initial fetch of nutrition plans for user:', userId);
+    fetchUserNutritionPlans(userId);
+  }, [fetchUserNutritionPlans]);
 
   const handlePlanChange = (planId: string) => {
     const plan = nutritionPlans.find(p => p._id === planId);
@@ -247,12 +278,14 @@ export default function NutritionSchedule() {
     );
   };
 
-  const handleCreateNutritionPlan = () => {
+  const handleGenerateNutritionPlan = () => {
     setShowNutritionForm(true);
   };
 
-  const handleNutritionPlanSuccess = () => {
+  const handleNutritionFormSuccess = () => {
     setShowNutritionForm(false);
+    // Refresh nutrition plans after successful creation
+    fetchUserNutritionPlans(userId);
   };
 
   if (localLoading) {
@@ -291,13 +324,16 @@ export default function NutritionSchedule() {
     return (
       <div className="bg-white rounded-lg shadow-lg p-6">
         {showNutritionForm ? (
-          <NutritionPlanForm onSuccess={handleNutritionPlanSuccess} />
+          <NutritionPlanForm 
+            onSuccess={handleNutritionFormSuccess} 
+            userProfile={userProfile}
+          />
         ) : (
           <div className="text-center">
             <h2 className="text-xl font-semibold text-gray-800 mb-4">No Nutrition Plans Yet</h2>
             <p className="text-gray-600 mb-6">You haven't created any nutrition plans for this workout yet. Generate your personalized nutrition plan to get started!</p>
             <button 
-              onClick={handleCreateNutritionPlan}
+              onClick={handleGenerateNutritionPlan}
               className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition-colors"
             >
               Create Nutrition Plan
@@ -373,7 +409,7 @@ export default function NutritionSchedule() {
           </div>
           <div className="p-3 border-t">
             <button 
-              onClick={handleCreateNutritionPlan}
+              onClick={handleGenerateNutritionPlan}
               className="w-full py-2 px-3 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-md transition-colors"
             >
               Create New Nutrition Plan
@@ -385,7 +421,10 @@ export default function NutritionSchedule() {
         <div className="col-span-2 overflow-y-auto max-h-[calc(100vh-200px)]">
           {showNutritionForm ? (
             <div className="p-4">
-              <NutritionPlanForm onSuccess={handleNutritionPlanSuccess} />
+              <NutritionPlanForm 
+                onSuccess={handleNutritionFormSuccess} 
+                userProfile={userProfile}
+              />
               <div className="mt-4 text-center">
                 <button
                   onClick={() => setShowNutritionForm(false)}
@@ -396,13 +435,19 @@ export default function NutritionSchedule() {
               </div>
             </div>
           ) : (
-            <div className="p-4">
-              <h3 className="font-semibold text-xl mb-4">{activeDay}'s Nutrition Plan</h3>
-              {renderMeals()}
-              {renderNutritionGuidelines()}
-              {renderHydrationTips()}
-              {renderSupplements()}
-            </div>
+            <>
+              <div className="p-3 bg-gray-50 border-b">
+                <h3 className="font-medium text-gray-800">
+                  {activeDay}'s Nutrition Plan
+                </h3>
+              </div>
+              <div className="p-4">
+                {renderMeals()}
+                {renderNutritionGuidelines()}
+                {renderHydrationTips()}
+                {renderSupplements()}
+              </div>
+            </>
           )}
         </div>
       </div>

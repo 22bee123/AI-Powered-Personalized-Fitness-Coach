@@ -3,6 +3,7 @@ import fetch from "node-fetch";
 import path from "path";
 import { fileURLToPath } from "url";
 import WorkoutPlan from "../models/fitness.model.js";
+import User from "../models/user.model.js";
 
 // Ensure dotenv is configured properly
 const __filename = fileURLToPath(import.meta.url);
@@ -642,6 +643,7 @@ const saveWorkoutPlan = async (req, res) => {
   try {
     const { 
       userId, 
+      clerkId,
       name, 
       difficulty, 
       userDetails, 
@@ -656,8 +658,22 @@ const saveWorkoutPlan = async (req, res) => {
     } = req.body;
 
     // Validate required fields
-    if (!userId || !name || !difficulty || !rawPlan) {
+    if (!name || !difficulty || !rawPlan) {
       return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    // Get the clerkId from the authenticated user in the request
+    const requestClerkId = req.auth?.userId || clerkId;
+    
+    if (!requestClerkId) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+
+    // Find the user in our database
+    let user = await User.findOne({ clerkId: requestClerkId });
+    
+    if (!user) {
+      return res.status(404).json({ error: "User not found. Please complete your profile first." });
     }
 
     // Use parsed data if available, otherwise use the provided data or empty arrays
@@ -676,7 +692,8 @@ const saveWorkoutPlan = async (req, res) => {
 
     // Create a new workout plan
     const workoutPlan = new WorkoutPlan({
-      userId,
+      userId: user._id.toString(), // Use the MongoDB user ID
+      clerkId: requestClerkId,     // Store the Clerk ID for authentication checks
       name,
       difficulty,
       userDetails,
@@ -693,6 +710,10 @@ const saveWorkoutPlan = async (req, res) => {
     // Save the workout plan
     const savedPlan = await workoutPlan.save();
     
+    // Add the workout plan to the user's workoutPlans array
+    user.workoutPlans.push(savedPlan._id);
+    await user.save();
+    
     res.status(201).json({
       message: "Workout plan saved successfully",
       plan: savedPlan
@@ -700,6 +721,218 @@ const saveWorkoutPlan = async (req, res) => {
   } catch (error) {
     console.error("Error saving workout plan:", error);
     res.status(500).json({ error: "Failed to save workout plan" });
+  }
+};
+
+// Get all workout plans for a user
+const getUserWorkoutPlans = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    // Get the clerkId from the authenticated user in the request
+    const requestClerkId = req.auth?.userId;
+    
+    console.log(`Fetching workout plans for user ID: ${userId}, Auth ClerkID: ${requestClerkId}`);
+    
+    if (!requestClerkId) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+    
+    // Find the user in our database
+    const user = await User.findOne({ clerkId: requestClerkId });
+    
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    
+    // First, log all workout plans in the database to debug
+    const allPlans = await WorkoutPlan.find({});
+    console.log(`Total workout plans in database: ${allPlans.length}`);
+    
+    // Find all workout plans for this user by clerkId
+    const workoutPlans = await WorkoutPlan.find({ clerkId: requestClerkId }).sort({ createdAt: -1 });
+    
+    console.log(`Found ${workoutPlans.length} plans for user with clerkId ${requestClerkId}`);
+    
+    res.json({
+      count: workoutPlans.length,
+      plans: workoutPlans
+    });
+  } catch (error) {
+    console.error("Error fetching workout plans:", error);
+    res.status(500).json({ error: "Failed to fetch workout plans" });
+  }
+};
+
+// Get a specific workout plan by ID
+const getWorkoutPlanById = async (req, res) => {
+  try {
+    const { planId } = req.params;
+    
+    // Get the clerkId from the authenticated user in the request
+    const requestClerkId = req.auth?.userId;
+    
+    if (!requestClerkId) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+    
+    if (!planId) {
+      return res.status(400).json({ error: "Plan ID is required" });
+    }
+    
+    const workoutPlan = await WorkoutPlan.findById(planId);
+    
+    if (!workoutPlan) {
+      return res.status(404).json({ error: "Workout plan not found" });
+    }
+    
+    // Check if the workout plan belongs to the authenticated user
+    if (workoutPlan.clerkId !== requestClerkId) {
+      return res.status(403).json({ error: "You don't have permission to access this workout plan" });
+    }
+    
+    res.json({ plan: workoutPlan });
+  } catch (error) {
+    console.error("Error fetching workout plan:", error);
+    res.status(500).json({ error: "Failed to fetch workout plan" });
+  }
+};
+
+// Update a workout plan
+const updateWorkoutPlan = async (req, res) => {
+  try {
+    const { planId } = req.params;
+    const updateData = req.body;
+    
+    // Get the clerkId from the authenticated user in the request
+    const requestClerkId = req.auth?.userId;
+    
+    if (!requestClerkId) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+    
+    if (!planId) {
+      return res.status(400).json({ error: "Plan ID is required" });
+    }
+    
+    // First find the workout plan to check ownership
+    const existingPlan = await WorkoutPlan.findById(planId);
+    
+    if (!existingPlan) {
+      return res.status(404).json({ error: "Workout plan not found" });
+    }
+    
+    // Check if the workout plan belongs to the authenticated user
+    if (existingPlan.clerkId !== requestClerkId) {
+      return res.status(403).json({ error: "You don't have permission to update this workout plan" });
+    }
+    
+    // Now update the plan
+    const workoutPlan = await WorkoutPlan.findByIdAndUpdate(
+      planId,
+      updateData,
+      { new: true, runValidators: true }
+    );
+    
+    res.json({
+      message: "Workout plan updated successfully",
+      plan: workoutPlan
+    });
+  } catch (error) {
+    console.error("Error updating workout plan:", error);
+    res.status(500).json({ error: "Failed to update workout plan" });
+  }
+};
+
+// Delete a workout plan
+const deleteWorkoutPlan = async (req, res) => {
+  try {
+    const { planId } = req.params;
+    
+    // Get the clerkId from the authenticated user in the request
+    const requestClerkId = req.auth?.userId;
+    
+    if (!requestClerkId) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+    
+    if (!planId) {
+      return res.status(400).json({ error: "Plan ID is required" });
+    }
+    
+    // First find the workout plan to check ownership
+    const existingPlan = await WorkoutPlan.findById(planId);
+    
+    if (!existingPlan) {
+      return res.status(404).json({ error: "Workout plan not found" });
+    }
+    
+    // Check if the workout plan belongs to the authenticated user
+    if (existingPlan.clerkId !== requestClerkId) {
+      return res.status(403).json({ error: "You don't have permission to delete this workout plan" });
+    }
+    
+    // Now delete the plan
+    const workoutPlan = await WorkoutPlan.findByIdAndDelete(planId);
+    
+    // Also remove the plan from the user's workoutPlans array
+    await User.updateOne(
+      { clerkId: requestClerkId },
+      { $pull: { workoutPlans: planId } }
+    );
+    
+    res.json({
+      message: "Workout plan deleted successfully",
+      planId
+    });
+  } catch (error) {
+    console.error("Error deleting workout plan:", error);
+    res.status(500).json({ error: "Failed to delete workout plan" });
+  }
+};
+
+// Toggle favorite status of a workout plan
+const toggleFavoriteWorkoutPlan = async (req, res) => {
+  try {
+    const { planId } = req.params;
+    
+    // Get the clerkId from the authenticated user in the request
+    const requestClerkId = req.auth?.userId;
+    
+    if (!requestClerkId) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+    
+    if (!planId) {
+      return res.status(400).json({ error: "Plan ID is required" });
+    }
+    
+    // First find the workout plan to check ownership
+    const existingPlan = await WorkoutPlan.findById(planId);
+    
+    if (!existingPlan) {
+      return res.status(404).json({ error: "Workout plan not found" });
+    }
+    
+    // Check if the workout plan belongs to the authenticated user
+    if (existingPlan.clerkId !== requestClerkId) {
+      return res.status(403).json({ error: "You don't have permission to modify this workout plan" });
+    }
+    
+    // Toggle the favorite status
+    const updatedPlan = await WorkoutPlan.findByIdAndUpdate(
+      planId,
+      { isFavorite: !existingPlan.isFavorite },
+      { new: true }
+    );
+    
+    res.json({
+      message: `Workout plan ${updatedPlan.isFavorite ? 'added to' : 'removed from'} favorites`,
+      plan: updatedPlan
+    });
+  } catch (error) {
+    console.error("Error toggling favorite status:", error);
+    res.status(500).json({ error: "Failed to update workout plan" });
   }
 };
 
@@ -1046,141 +1279,6 @@ function findExercisesForDay(description, allExercises) {
   // If we still don't have matches, return a subset of exercises based on the day
   return allExercises.slice(0, Math.min(5, allExercises.length));
 }
-
-// Get all workout plans for a user
-const getUserWorkoutPlans = async (req, res) => {
-  try {
-    const { userId } = req.params;
-    
-    console.log(`Fetching workout plans for user ID: ${userId}`);
-    
-    if (!userId) {
-      return res.status(400).json({ error: "User ID is required" });
-    }
-    
-    // First, log all workout plans in the database to debug
-    const allPlans = await WorkoutPlan.find({});
-    console.log(`Total workout plans in database: ${allPlans.length}`);
-    console.log('All user IDs in database:', allPlans.map(plan => plan.userId));
-    
-    const workoutPlans = await WorkoutPlan.find({ userId }).sort({ createdAt: -1 });
-    
-    console.log(`Found ${workoutPlans.length} plans for user ${userId}`);
-    
-    res.json({
-      count: workoutPlans.length,
-      plans: workoutPlans
-    });
-  } catch (error) {
-    console.error("Error fetching workout plans:", error);
-    res.status(500).json({ error: "Failed to fetch workout plans" });
-  }
-};
-
-// Get a specific workout plan by ID
-const getWorkoutPlanById = async (req, res) => {
-  try {
-    const { planId } = req.params;
-    
-    if (!planId) {
-      return res.status(400).json({ error: "Plan ID is required" });
-    }
-    
-    const workoutPlan = await WorkoutPlan.findById(planId);
-    
-    if (!workoutPlan) {
-      return res.status(404).json({ error: "Workout plan not found" });
-    }
-    
-    res.json({ plan: workoutPlan });
-  } catch (error) {
-    console.error("Error fetching workout plan:", error);
-    res.status(500).json({ error: "Failed to fetch workout plan" });
-  }
-};
-
-// Update a workout plan
-const updateWorkoutPlan = async (req, res) => {
-  try {
-    const { planId } = req.params;
-    const updateData = req.body;
-    
-    if (!planId) {
-      return res.status(400).json({ error: "Plan ID is required" });
-    }
-    
-    const workoutPlan = await WorkoutPlan.findByIdAndUpdate(
-      planId,
-      updateData,
-      { new: true, runValidators: true }
-    );
-    
-    if (!workoutPlan) {
-      return res.status(404).json({ error: "Workout plan not found" });
-    }
-    
-    res.json({
-      message: "Workout plan updated successfully",
-      plan: workoutPlan
-    });
-  } catch (error) {
-    console.error("Error updating workout plan:", error);
-    res.status(500).json({ error: "Failed to update workout plan" });
-  }
-};
-
-// Delete a workout plan
-const deleteWorkoutPlan = async (req, res) => {
-  try {
-    const { planId } = req.params;
-    
-    if (!planId) {
-      return res.status(400).json({ error: "Plan ID is required" });
-    }
-    
-    const workoutPlan = await WorkoutPlan.findByIdAndDelete(planId);
-    
-    if (!workoutPlan) {
-      return res.status(404).json({ error: "Workout plan not found" });
-    }
-    
-    res.json({
-      message: "Workout plan deleted successfully",
-      planId
-    });
-  } catch (error) {
-    console.error("Error deleting workout plan:", error);
-    res.status(500).json({ error: "Failed to delete workout plan" });
-  }
-};
-
-// Toggle favorite status of a workout plan
-const toggleFavoriteWorkoutPlan = async (req, res) => {
-  try {
-    const { planId } = req.params;
-    
-    if (!planId) {
-      return res.status(400).json({ error: "Plan ID is required" });
-    }
-    
-    const workoutPlan = await WorkoutPlan.findById(planId);
-    
-    if (!workoutPlan) {
-      return res.status(404).json({ error: "Workout plan not found" });
-    }
-    
-    workoutPlan.isFavorite = !workoutPlan.isFavorite;
-    await workoutPlan.save();
-    
-    res.json({
-      message: `Workout plan ${workoutPlan.isFavorite ? 'added to' : 'removed from'} favorites`,
-      plan: workoutPlan
-    });
-  } catch (error) {
-    console.error("Error toggling favorite status:", error);
-    res.status(500).json({ error: "Failed to update favorite status" });
-  }
-};
 
 export {
   getDifficultyLevels,

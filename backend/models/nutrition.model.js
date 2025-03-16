@@ -69,6 +69,11 @@ const nutritionPlanSchema = new mongoose.Schema({
     required: true,
     index: true
   },
+  clerkId: {
+    type: String,
+    required: false,
+    index: true
+  },
   name: {
     type: String,
     required: true,

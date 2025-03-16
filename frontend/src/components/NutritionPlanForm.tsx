@@ -2,11 +2,20 @@ import React, { useState } from 'react';
 import { useWorkoutPlan } from '../contexts/WorkoutPlanContext';
 import { useNutritionPlan } from '../contexts/NutritionPlanContext';
 
-interface NutritionPlanFormProps {
-  onSuccess?: () => void;
+interface UserProfile {
+  gender?: string;
+  weight?: string;
+  height?: string;
+  age?: string;
+  goals?: string;
 }
 
-const NutritionPlanForm: React.FC<NutritionPlanFormProps> = ({ onSuccess }) => {
+interface NutritionPlanFormProps {
+  onSuccess?: () => void;
+  userProfile?: UserProfile | null;
+}
+
+const NutritionPlanForm: React.FC<NutritionPlanFormProps> = ({ onSuccess, userProfile }) => {
   const { activePlan: activeWorkoutPlan } = useWorkoutPlan();
   const { fetchNutritionPlansByWorkout } = useNutritionPlan();
   
@@ -19,7 +28,7 @@ const NutritionPlanForm: React.FC<NutritionPlanFormProps> = ({ onSuccess }) => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Mock user ID - in a real app, this would come from authentication
+  // Default user ID for development
   const userId = "user123";
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -44,13 +53,21 @@ const NutritionPlanForm: React.FC<NutritionPlanFormProps> = ({ onSuccess }) => {
         dietaryRestrictions,
         preferences,
         // Include user details from the workout plan
-        age: activeWorkoutPlan.userDetails?.age,
-        gender: activeWorkoutPlan.userDetails?.gender,
-        weight: activeWorkoutPlan.userDetails?.weight,
-        height: activeWorkoutPlan.userDetails?.height,
-        goals: activeWorkoutPlan.userDetails?.goals,
+        age: activeWorkoutPlan.userDetails?.age || userProfile?.age,
+        gender: activeWorkoutPlan.userDetails?.gender || userProfile?.gender,
+        weight: activeWorkoutPlan.userDetails?.weight || userProfile?.weight,
+        height: activeWorkoutPlan.userDetails?.height || userProfile?.height,
+        goals: activeWorkoutPlan.userDetails?.goals || userProfile?.goals,
         limitations: activeWorkoutPlan.userDetails?.limitations,
       };
+      
+      console.log('Generating nutrition plan with user data:', {
+        userId,
+        gender: nutritionPlanData.gender,
+        weight: nutritionPlanData.weight,
+        height: nutritionPlanData.height,
+        age: nutritionPlanData.age
+      });
       
       // Call the API to generate a personalized nutrition plan
       const response = await fetch('http://localhost:3000/api/fitness-coach/personalized-nutrition-plan', {
@@ -66,7 +83,6 @@ const NutritionPlanForm: React.FC<NutritionPlanFormProps> = ({ onSuccess }) => {
         throw new Error(errorData.error || 'Failed to generate nutrition plan');
       }
       
-      // Removed the unused 'data' variable
       setSuccess('Nutrition plan generated successfully!');
       
       // Refresh the nutrition plans list
@@ -106,6 +122,18 @@ const NutritionPlanForm: React.FC<NutritionPlanFormProps> = ({ onSuccess }) => {
       {success && (
         <div className="bg-green-50 text-green-700 p-3 rounded-md mb-4">
           {success}
+        </div>
+      )}
+      
+      {userProfile && (
+        <div className="bg-blue-50 text-blue-700 p-3 rounded-md mb-4">
+          <p className="font-medium">Using your profile data:</p>
+          <ul className="mt-1 ml-4 list-disc">
+            {userProfile.gender && <li>Gender: {userProfile.gender}</li>}
+            {userProfile.weight && <li>Weight: {userProfile.weight}</li>}
+            {userProfile.height && <li>Height: {userProfile.height}</li>}
+            {userProfile.age && <li>Age: {userProfile.age}</li>}
+          </ul>
         </div>
       )}
       

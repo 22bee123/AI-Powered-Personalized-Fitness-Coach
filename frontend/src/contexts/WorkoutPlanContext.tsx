@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
-import { useUser } from '@clerk/clerk-react';
+import { useUser, useAuth } from '@clerk/clerk-react';
 
 // Define types for workout plan data
 interface Exercise {
@@ -77,95 +77,113 @@ interface WorkoutPlanContextType {
   setActivePlan: (plan: WorkoutPlan) => void;
   loading: boolean;
   error: string | null;
+  refreshWorkoutPlans: () => Promise<void>;
 }
 
 const WorkoutPlanContext = createContext<WorkoutPlanContextType | undefined>(undefined);
 
 export const WorkoutPlanProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const { user, isSignedIn, isLoaded } = useUser();
+  const { getToken } = useAuth();
   const [workoutPlans, setWorkoutPlans] = useState<WorkoutPlan[]>([]);
   const [activePlan, setActivePlan] = useState<WorkoutPlan | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { user } = useUser();
 
   // API base URL
-  const API_BASE_URL = 'http://localhost:3000/api/fitness-coach';
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/fitness-coach';
+
+  const fetchWorkoutPlans = async () => {
+    // Don't fetch if Clerk hasn't loaded yet or user isn't signed in
+    if (!isLoaded || !isSignedIn || !user) {
+      console.log('User not authenticated, skipping workout plan fetch');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const clerkId = user.id;
+      console.log(`Fetching workout plans for user: ${clerkId}`);
+      
+      const token = await getToken();
+      const response = await fetch(`${API_BASE_URL}/user-workout-plans/${clerkId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch workout plans: ${response.status} ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      console.log('Workout plans data:', data);
+      
+      if (data.plans && data.plans.length > 0) {
+        // Process each plan to ensure weekSchedule is properly parsed
+        const processedPlans = data.plans.map((plan: WorkoutPlan) => {
+          console.log('Processing plan:', plan.name);
+          
+          // Ensure weekSchedule is properly handled
+          if (plan.weekSchedule) {
+            console.log('Plan has weekSchedule:', Object.keys(plan.weekSchedule));
+            
+            // Make sure exercises array exists in each day's workout
+            Object.keys(plan.weekSchedule).forEach(day => {
+              if (plan.weekSchedule && plan.weekSchedule[day]) {
+                // Log exercises for each day
+                console.log(`Day ${day} has ${plan.weekSchedule[day].exercises?.length || 0} exercises`);
+                
+                // If exercises is undefined or null, initialize it as an empty array
+                if (!plan.weekSchedule[day].exercises) {
+                  plan.weekSchedule[day].exercises = [];
+                }
+              }
+            });
+          } else {
+            console.log('Plan does not have weekSchedule');
+          }
+          return plan;
+        });
+        
+        console.log('Setting workout plans:', processedPlans.length);
+        setWorkoutPlans(processedPlans);
+        
+        // Set active plan if not already set and we're not in an update
+        if (!activePlan && processedPlans.length > 0) {
+          console.log('Setting active plan to:', processedPlans[0].name);
+          setActivePlan(processedPlans[0]);
+        }
+      } else {
+        console.log('No workout plans found');
+        setWorkoutPlans([]);
+        setActivePlan(null);
+      }
+      
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching workout plans:', error);
+      setError('Failed to fetch workout plans');
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchWorkoutPlans = async () => {
-      if (!user?.id) {
-        console.log('No user ID available, skipping workout plan fetch');
-        setLoading(false);
-        return;
-      }
-
-      try {
-        setLoading(true);
-        setError(null);
-        
-        console.log(`Fetching workout plans for user: ${user.id}`);
-        const response = await fetch(`${API_BASE_URL}/user-workout-plans/${user.id}`);
-        
-        if (!response.ok) {
-          throw new Error(`Failed to fetch workout plans: ${response.status} ${response.statusText}`);
-        }
-        
-        const data = await response.json();
-        console.log('Workout plans data:', data);
-        
-        if (data.plans && data.plans.length > 0) {
-          // Process each plan to ensure weekSchedule is properly parsed
-          const processedPlans = data.plans.map((plan: WorkoutPlan) => {
-            console.log('Processing plan:', plan.name);
-            
-            // Ensure weekSchedule is properly handled
-            if (plan.weekSchedule) {
-              console.log('Plan has weekSchedule:', Object.keys(plan.weekSchedule));
-              
-              // Make sure exercises array exists in each day's workout
-              Object.keys(plan.weekSchedule).forEach(day => {
-                if (plan.weekSchedule && plan.weekSchedule[day]) {
-                  // Log exercises for each day
-                  console.log(`Day ${day} has ${plan.weekSchedule[day].exercises?.length || 0} exercises`);
-                  
-                  // If exercises is undefined or null, initialize it as an empty array
-                  if (!plan.weekSchedule[day].exercises) {
-                    plan.weekSchedule[day].exercises = [];
-                  }
-                }
-              });
-            } else {
-              console.log('Plan does not have weekSchedule');
-            }
-            return plan;
-          });
-          
-          console.log('Setting workout plans:', processedPlans.length);
-          setWorkoutPlans(processedPlans);
-          
-          // Set active plan if not already set and we're not in an update
-          if (!activePlan && processedPlans.length > 0) {
-            console.log('Setting active plan to:', processedPlans[0].name);
-            setActivePlan(processedPlans[0]);
-          }
-        } else {
-          console.log('No workout plans found');
-          setWorkoutPlans([]);
-        }
-        
-        setLoading(false);
-      } catch (error) {
-        console.error('Error fetching workout plans:', error);
-        setError('Failed to fetch workout plans');
-        setLoading(false);
-      }
-    };
-
     fetchWorkoutPlans();
-  }, [user?.id]); // Remove activePlan from dependency array to prevent infinite loops
+  }, [isSignedIn, isLoaded, user]); 
 
   return (
-    <WorkoutPlanContext.Provider value={{ workoutPlans, activePlan, setActivePlan, loading, error }}>
+    <WorkoutPlanContext.Provider value={{ 
+      workoutPlans, 
+      activePlan, 
+      setActivePlan, 
+      loading, 
+      error,
+      refreshWorkoutPlans: fetchWorkoutPlans
+    }}>
       {children}
     </WorkoutPlanContext.Provider>
   );
