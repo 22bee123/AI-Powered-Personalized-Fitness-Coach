@@ -637,6 +637,72 @@ const parseWorkoutPlanOnly = async (req, res) => {
   }
 };
 
+// Save a workout plan to the database
+const saveWorkoutPlan = async (req, res) => {
+  try {
+    const { 
+      userId, 
+      name, 
+      difficulty, 
+      userDetails, 
+      rawPlan, 
+      schedule, 
+      exercises, 
+      warmup, 
+      cooldown, 
+      nutrition, 
+      recovery,
+      parsedPlan 
+    } = req.body;
+
+    // Validate required fields
+    if (!userId || !name || !difficulty || !rawPlan) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    // Use parsed data if available, otherwise use the provided data or empty arrays
+    const finalSchedule = parsedPlan?.schedule || schedule || [];
+    const finalExercises = parsedPlan?.exercises || exercises || [];
+    const finalWarmup = parsedPlan?.warmup || warmup || [];
+    const finalCooldown = parsedPlan?.cooldown || cooldown || [];
+    const finalNutrition = parsedPlan?.nutrition || nutrition || [];
+    const finalRecovery = parsedPlan?.recovery || recovery || [];
+
+    // Parse the raw plan to get the week schedule
+    const parsedData = parseWorkoutPlan(rawPlan);
+    const weekSchedule = parsedData.weekSchedule;
+
+    console.log("Saving workout plan with weekSchedule:", JSON.stringify(weekSchedule, null, 2));
+
+    // Create a new workout plan
+    const workoutPlan = new WorkoutPlan({
+      userId,
+      name,
+      difficulty,
+      userDetails,
+      rawPlan,
+      schedule: finalSchedule,
+      exercises: finalExercises,
+      warmup: finalWarmup,
+      cooldown: finalCooldown,
+      nutrition: finalNutrition,
+      recovery: finalRecovery,
+      weekSchedule // Add the week schedule to the workout plan
+    });
+
+    // Save the workout plan
+    const savedPlan = await workoutPlan.save();
+    
+    res.status(201).json({
+      message: "Workout plan saved successfully",
+      plan: savedPlan
+    });
+  } catch (error) {
+    console.error("Error saving workout plan:", error);
+    res.status(500).json({ error: "Failed to save workout plan" });
+  }
+};
+
 // Helper function to parse the workout plan text into structured data
 const parseWorkoutPlan = (rawPlan) => {
   const result = {
@@ -981,82 +1047,25 @@ function findExercisesForDay(description, allExercises) {
   return allExercises.slice(0, Math.min(5, allExercises.length));
 }
 
-// Save a workout plan to the database
-const saveWorkoutPlan = async (req, res) => {
-  try {
-    const { 
-      userId, 
-      name, 
-      difficulty, 
-      userDetails, 
-      rawPlan, 
-      schedule, 
-      exercises, 
-      warmup, 
-      cooldown, 
-      nutrition, 
-      recovery,
-      parsedPlan 
-    } = req.body;
-
-    // Validate required fields
-    if (!userId || !name || !difficulty || !rawPlan) {
-      return res.status(400).json({ error: "Missing required fields" });
-    }
-
-    // Use parsed data if available, otherwise use the provided data or empty arrays
-    const finalSchedule = parsedPlan?.schedule || schedule || [];
-    const finalExercises = parsedPlan?.exercises || exercises || [];
-    const finalWarmup = parsedPlan?.warmup || warmup || [];
-    const finalCooldown = parsedPlan?.cooldown || cooldown || [];
-    const finalNutrition = parsedPlan?.nutrition || nutrition || [];
-    const finalRecovery = parsedPlan?.recovery || recovery || [];
-
-    // Parse the raw plan to get the week schedule
-    const parsedData = parseWorkoutPlan(rawPlan);
-    const weekSchedule = parsedData.weekSchedule;
-
-    console.log("Saving workout plan with weekSchedule:", JSON.stringify(weekSchedule, null, 2));
-
-    // Create a new workout plan
-    const workoutPlan = new WorkoutPlan({
-      userId,
-      name,
-      difficulty,
-      userDetails,
-      rawPlan,
-      schedule: finalSchedule,
-      exercises: finalExercises,
-      warmup: finalWarmup,
-      cooldown: finalCooldown,
-      nutrition: finalNutrition,
-      recovery: finalRecovery,
-      weekSchedule // Add the week schedule to the workout plan
-    });
-
-    // Save the workout plan
-    const savedPlan = await workoutPlan.save();
-    
-    res.status(201).json({
-      message: "Workout plan saved successfully",
-      plan: savedPlan
-    });
-  } catch (error) {
-    console.error("Error saving workout plan:", error);
-    res.status(500).json({ error: "Failed to save workout plan" });
-  }
-};
-
 // Get all workout plans for a user
 const getUserWorkoutPlans = async (req, res) => {
   try {
     const { userId } = req.params;
     
+    console.log(`Fetching workout plans for user ID: ${userId}`);
+    
     if (!userId) {
       return res.status(400).json({ error: "User ID is required" });
     }
     
+    // First, log all workout plans in the database to debug
+    const allPlans = await WorkoutPlan.find({});
+    console.log(`Total workout plans in database: ${allPlans.length}`);
+    console.log('All user IDs in database:', allPlans.map(plan => plan.userId));
+    
     const workoutPlans = await WorkoutPlan.find({ userId }).sort({ createdAt: -1 });
+    
+    console.log(`Found ${workoutPlans.length} plans for user ${userId}`);
     
     res.json({
       count: workoutPlans.length,

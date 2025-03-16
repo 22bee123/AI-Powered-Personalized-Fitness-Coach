@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import WorkoutSchedule from "../components/WorkoutSchedule";
 import { useState, useEffect } from "react";
 import { useWorkoutPlan } from "../contexts/WorkoutPlanContext";
+import { NutritionPlanProvider } from "../contexts/NutritionPlanContext";
 
 // Define interfaces for workout plan data
 interface Workout {
@@ -338,7 +339,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Workout Schedule Section */}
       <div className="mt-8">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-bold text-gray-900">My Workout Schedule</h2>
@@ -349,7 +349,9 @@ export default function Dashboard() {
             </svg>
           </Link>
         </div>
-        <WorkoutSchedule />
+        <NutritionPlanProvider>
+          <WorkoutSchedule />
+        </NutritionPlanProvider>
       </div>
     </div>
   );

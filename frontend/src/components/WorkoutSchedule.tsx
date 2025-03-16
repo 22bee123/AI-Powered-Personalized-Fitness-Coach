@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useWorkoutPlan } from '../contexts/WorkoutPlanContext';
+import NutritionPlanLoader from './NutritionPlanLoader';
 
 interface Exercise {
   name: string;
@@ -15,8 +16,8 @@ interface Exercise {
 interface DailyWorkout {
   day: string;
   focus: string;
-  description: string;
-  workoutType: string;
+  description?: string;
+  workoutType?: string;
   exercises: Exercise[];
   isRestDay: boolean;
 }
@@ -79,7 +80,24 @@ export default function WorkoutSchedule() {
   // Use the shared context instead of local state for plans
   const { workoutPlans, activePlan, setActivePlan, loading, error } = useWorkoutPlan();
   const [activeDay, setActiveDay] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'workout' | 'nutrition'>('workout');
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (activePlan) {
+      console.log('Active plan in WorkoutSchedule:', activePlan.name);
+      console.log('Active plan weekSchedule:', activePlan.weekSchedule ? Object.keys(activePlan.weekSchedule) : 'None');
+      
+      // Set default active day if not already set
+      if (!activeDay) {
+        const today = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+        setActiveDay(today);
+        console.log('Setting active day to today:', today);
+      }
+    } else {
+      console.log('No active plan in WorkoutSchedule');
+    }
+  }, [activePlan, activeDay]);
 
   useEffect(() => {
     // Set Monday as active by default when plans are loaded
@@ -174,15 +192,26 @@ export default function WorkoutSchedule() {
   const renderExercises = () => {
     if (!activePlan || !activeDay) return null;
     
+    console.log(`Rendering exercises for ${activeDay}`);
+    
     // Get exercises for the active day
     let exercises: Exercise[] = [];
+    let dailyWorkout: DailyWorkout | null = null;
     
+    // First check if we have a weekSchedule with the active day
     if (activePlan.weekSchedule && activePlan.weekSchedule[activeDay]) {
-      exercises = activePlan.weekSchedule[activeDay].exercises || [];
-    } else if (activePlan.parsedSchedule) {
+      dailyWorkout = activePlan.weekSchedule[activeDay];
+      exercises = dailyWorkout.exercises || [];
+      
+      // Debug log to see what exercises we have
+      console.log(`Found ${exercises.length} exercises for ${activeDay} in weekSchedule:`, exercises);
+    } 
+    // Fallback to parsedSchedule if no exercises found in weekSchedule
+    else if (activePlan.parsedSchedule) {
       const scheduleItem = activePlan.parsedSchedule.find((s: ParsedScheduleItem) => s.day === activeDay);
       if (scheduleItem) {
         exercises = scheduleItem.exercises;
+        console.log(`Found ${exercises.length} exercises for ${activeDay} in parsedSchedule:`, exercises);
       }
     }
     
@@ -190,7 +219,9 @@ export default function WorkoutSchedule() {
       // Check if it's a rest day
       const isRestDay = activePlan.parsedSchedule?.some((s: ParsedScheduleItem) => 
         s.day === activeDay && s.activities.toLowerCase().includes('rest')
-      );
+      ) || (dailyWorkout && dailyWorkout.isRestDay === true);
+      
+      console.log(`Is ${activeDay} a rest day?`, isRestDay);
       
       if (isRestDay) {
         return (
@@ -225,7 +256,9 @@ export default function WorkoutSchedule() {
               <p className="text-gray-700">Rest: {exercise.rest}</p>
             )}
             {exercise.instructions && (
-              <p className="text-gray-600 mt-2">{exercise.instructions}</p>
+              <div className="mt-2">
+                <p className="text-sm text-gray-600">{exercise.instructions}</p>
+              </div>
             )}
           </div>
         ))}
@@ -288,145 +321,190 @@ export default function WorkoutSchedule() {
 
   return (
     <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-4">
-        <h2 className="text-xl font-bold text-white">My Workout Schedule</h2>
-      </div>
-      
-      {workoutPlans.length > 1 && (
-        <div className="p-4 border-b">
-          <label htmlFor="planSelect" className="block text-sm font-medium text-gray-700 mb-1">
-            Select Workout Plan
-          </label>
-          <select
-            id="planSelect"
-            value={activePlan?._id || ''}
-            onChange={(e) => handlePlanChange(e.target.value)}
-            className="w-full p-2 border border-gray-300 rounded-md bg-white"
-          >
-            {workoutPlans.map(plan => (
-              <option key={plan._id} value={plan._id}>
-                {plan.name} ({plan.difficulty.charAt(0).toUpperCase() + plan.difficulty.slice(1)})
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-      
-      {activePlan && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-0 h-full">
-          {/* Weekly Schedule */}
-          <div className="border-r">
-            <div className="p-3 bg-gray-50 border-b">
-              <h3 className="font-medium text-gray-800">Weekly Schedule</h3>
-            </div>
-            <div className="overflow-y-auto max-h-96">
-              {activePlan.parsedSchedule && activePlan.parsedSchedule.length > 0 ? (
-                <ul className="divide-y">
-                  {activePlan.parsedSchedule.map((scheduleItem: ParsedScheduleItem, index: number) => {
-                    const isActive = activeDay === scheduleItem.day;
-                    const isRestDay = scheduleItem.activities.toLowerCase().includes('rest');
-                    
-                    return (
-                      <li 
-                        key={index}
-                        onClick={() => handleDayClick(scheduleItem.day)}
-                        className={`p-3 cursor-pointer transition-colors ${isActive ? 'bg-blue-50 border-l-4 border-blue-500' : 'hover:bg-gray-50'}`}
-                      >
-                        <div className="font-medium text-gray-900">{scheduleItem.day}</div>
-                        <div className="text-sm text-gray-600 mt-1">
-                          {isRestDay ? (
-                            <span className="flex items-center">
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                              </svg>
-                              {scheduleItem.activities}
-                            </span>
-                          ) : (
-                            scheduleItem.activities
-                          )}
-                        </div>
-                        {!isRestDay && scheduleItem.exercises.length > 0 && (
-                          <div className="mt-1 text-xs text-blue-600">
-                            {scheduleItem.exercises.length} exercise{scheduleItem.exercises.length !== 1 ? 's' : ''}
-                          </div>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ul>
-              ) : (
-                <div className="p-4 text-center text-gray-500">No schedule available</div>
-              )}
-            </div>
-          </div>
-          
-          {/* Daily Exercises */}
-          <div className="col-span-2">
-            <div className="p-3 bg-gray-50 border-b">
-              <h3 className="font-medium text-gray-800">
-                {activeDay ? `${activeDay}'s Workout` : 'Daily Workout'}
-              </h3>
-            </div>
-            <div className="overflow-y-auto max-h-96 p-4">
-              {activeDay && (
-                <>
-                  <div className="mb-6">
-                    <h3 className="text-xl font-semibold text-gray-800 mb-2">
-                      {activeDay}'s Workout
-                    </h3>
-                    
-                    {/* Display workout focus and type */}
-                    {activePlan.weekSchedule && activeDay in activePlan.weekSchedule ? (
-                      <div className="mb-4">
-                        <div className="flex items-center mb-2">
-                          <span className="font-medium text-gray-700 mr-2">Focus:</span>
-                          <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
-                            {activePlan.weekSchedule[activeDay].focus}
-                          </span>
-                          
-                          {!activePlan.weekSchedule[activeDay].isRestDay && (
-                            <span className="ml-2 px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">
-                              {activePlan.weekSchedule[activeDay].workoutType.charAt(0).toUpperCase() + 
-                               activePlan.weekSchedule[activeDay].workoutType.slice(1)}
-                            </span>
-                          )}
-                        </div>
-                        
-                        <p className="text-gray-600">
-                          {activePlan.weekSchedule[activeDay].description}
-                        </p>
-                      </div>
-                    ) : activePlan.parsedSchedule?.find(s => s.day === activeDay) ? (
-                      <div className="mb-4">
-                        <p className="text-gray-600">
-                          {activePlan.parsedSchedule.find(s => s.day === activeDay)?.activities}
-                        </p>
-                      </div>
-                    ) : null}
-                  </div>
-                  
-                  {/* Display exercises */}
-                  {renderExercises()}
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-      
-      <div className="p-4 bg-gray-50 border-t flex justify-between items-center">
-        <div>
-          <span className="text-sm text-gray-500">
-            {activePlan ? `${activePlan.name} • ${activePlan.difficulty.charAt(0).toUpperCase() + activePlan.difficulty.slice(1)} Level` : ''}
-          </span>
-        </div>
-        <button 
-          onClick={navigateToFitnessCoach}
-          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+      {/* Tab Navigation */}
+      <div className="flex border-b">
+        <button
+          onClick={() => setActiveTab('workout')}
+          className={`flex-1 py-3 px-4 text-center font-medium ${
+            activeTab === 'workout'
+              ? 'text-blue-600 border-b-2 border-blue-600'
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
         >
-          Manage Workout Plans
+          Workout Schedule
+        </button>
+        <button
+          onClick={() => setActiveTab('nutrition')}
+          className={`flex-1 py-3 px-4 text-center font-medium ${
+            activeTab === 'nutrition'
+              ? 'text-green-600 border-b-2 border-green-600'
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Nutrition Plan
         </button>
       </div>
+
+      {activeTab === 'workout' ? (
+        <>
+          <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-4">
+            <h2 className="text-xl font-bold text-white">My Workout Schedule</h2>
+          </div>
+          
+          {workoutPlans.length > 1 && (
+            <div className="p-4 border-b">
+              <label htmlFor="planSelect" className="block text-sm font-medium text-gray-700 mb-1">
+                Select Workout Plan
+              </label>
+              <select
+                id="planSelect"
+                value={activePlan?._id || ''}
+                onChange={(e) => handlePlanChange(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-md bg-white"
+              >
+                {workoutPlans.map(plan => (
+                  <option key={plan._id} value={plan._id}>
+                    {plan.name} ({plan.difficulty.charAt(0).toUpperCase() + plan.difficulty.slice(1)})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          
+          {activePlan && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-0 h-full">
+              {/* Weekly Schedule */}
+              <div className="border-r">
+                <div className="p-3 bg-gray-50 border-b">
+                  <h3 className="font-medium text-gray-800">Weekly Schedule</h3>
+                </div>
+                <div className="overflow-y-auto max-h-96">
+                  {activePlan.parsedSchedule && activePlan.parsedSchedule.length > 0 ? (
+                    <ul className="divide-y">
+                      {activePlan.parsedSchedule.map((scheduleItem: ParsedScheduleItem, index: number) => {
+                        const isActive = activeDay === scheduleItem.day;
+                        const isRestDay = scheduleItem.activities.toLowerCase().includes('rest');
+                        
+                        return (
+                          <li 
+                            key={index}
+                            onClick={() => handleDayClick(scheduleItem.day)}
+                            className={`p-3 cursor-pointer transition-colors ${isActive ? 'bg-blue-50 border-l-4 border-blue-500' : 'hover:bg-gray-50'}`}
+                          >
+                            <div className="font-medium text-gray-900">{scheduleItem.day}</div>
+                            <div className="text-sm text-gray-600 mt-1">
+                              {isRestDay ? (
+                                <span className="flex items-center">
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                  {scheduleItem.activities}
+                                </span>
+                              ) : (
+                                scheduleItem.activities
+                              )}
+                            </div>
+                            {!isRestDay && scheduleItem.exercises.length > 0 && (
+                              <div className="mt-1 text-xs text-blue-600">
+                                {scheduleItem.exercises.length} exercise{scheduleItem.exercises.length !== 1 ? 's' : ''}
+                              </div>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  ) : (
+                    <div className="p-4 text-center text-gray-500">
+                      <p>No schedule available</p>
+                    </div>
+                  )}
+                </div>
+                <div className="p-3 border-t">
+                  <button 
+                    onClick={navigateToFitnessCoach}
+                    className="w-full py-2 px-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors"
+                  >
+                    Create New Workout Plan
+                  </button>
+                </div>
+              </div>
+              
+              {/* Exercise Details */}
+              <div className="col-span-2 overflow-y-auto max-h-[calc(100vh-200px)]">
+                <div className="p-3 bg-gray-50 border-b">
+                  <h3 className="font-medium text-gray-800">
+                    {activeDay}'s Workout {activePlan.weekSchedule && activePlan.weekSchedule[activeDay || ''] ? 
+                      `- ${activePlan.weekSchedule[activeDay || ''].focus}` : ''}
+                  </h3>
+                </div>
+                <div className="p-4">
+                  {renderExercises()}
+                  
+                  {/* Warm-up Section */}
+                  {activePlan.warmup && activePlan.warmup.length > 0 && (
+                    <div className="mt-6 bg-blue-50 p-4 rounded-lg">
+                      <h3 className="font-semibold text-lg mb-3">Warm-up</h3>
+                      <ul className="space-y-2">
+                        {activePlan.warmup.map((item, index) => (
+                          <li key={index} className="flex items-start">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500 mr-2 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            </svg>
+                            <div>
+                              <span className="font-medium">{item.name}</span>
+                              {(item.duration || item.reps) && (
+                                <span className="text-gray-600 ml-2">
+                                  {item.duration ? `${item.duration}` : `${item.reps}`}
+                                </span>
+                              )}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  
+                  {/* Cool-down Section */}
+                  {activePlan.cooldown && activePlan.cooldown.length > 0 && (
+                    <div className="mt-4 bg-indigo-50 p-4 rounded-lg">
+                      <h3 className="font-semibold text-lg mb-3">Cool-down</h3>
+                      <ul className="space-y-2">
+                        {activePlan.cooldown.map((item, index) => (
+                          <li key={index} className="flex items-start">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-indigo-500 mr-2 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            <div>
+                              <span className="font-medium">{item.name}</span>
+                              {item.duration && (
+                                <span className="text-gray-600 ml-2">{item.duration}</span>
+                              )}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  
+                  {/* Recovery Tips */}
+                  {activePlan.recovery && activePlan.recovery.length > 0 && (
+                    <div className="mt-4 bg-green-50 p-4 rounded-lg">
+                      <h3 className="font-semibold text-lg mb-3">Recovery Tips</h3>
+                      <ul className="list-disc list-inside space-y-1 text-gray-700">
+                        {activePlan.recovery.map((tip, index) => (
+                          <li key={index}>{tip}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      ) : (
+        <NutritionPlanLoader />
+      )}
     </div>
   );
 }
