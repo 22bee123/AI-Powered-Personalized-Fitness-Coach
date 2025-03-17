@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import ReactMarkdown from 'react-markdown';
 
 // API base URL
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
@@ -12,6 +13,7 @@ interface Message {
 }
 
 const AICoach: React.FC = () => {
+  const [showChat, setShowChat] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -97,19 +99,58 @@ const AICoach: React.FC = () => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
+  // Chat Entry Screen
+  if (!showChat) {
+    return (
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col items-center justify-center h-[600px] p-8 text-center">
+        <div className="w-20 h-20 rounded-full bg-blue-600 flex items-center justify-center mb-6">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+          </svg>
+        </div>
+        <h2 className="text-2xl font-bold text-gray-800 mb-3">AI Fitness Coach</h2>
+        <p className="text-gray-600 mb-8 max-w-md">
+          Get personalized fitness advice, workout tips, and nutrition guidance from your 
+          AI-powered fitness coach.
+        </p>
+        <button 
+          onClick={() => setShowChat(true)}
+          className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg 
+                    transition-all duration-300 flex items-center justify-center"
+        >
+          <span>Start Coaching Session</span>
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-2" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+          </svg>
+        </button>
+      </div>
+    );
+  }
+
+  // Chat Interface
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col h-[600px]">
       <div className="p-4 border-b border-gray-200 bg-blue-600 text-white rounded-t-lg">
-        <div className="flex items-center">
-          <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center mr-3">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center mr-3">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-xl font-bold">AI Fitness Coach</h2>
+              <p className="text-sm text-blue-100">Online</p>
+            </div>
+          </div>
+          <button 
+            onClick={() => setShowChat(false)}
+            className="text-white hover:text-blue-200 transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
-          </div>
-          <div>
-            <h2 className="text-xl font-bold">AI Fitness Coach</h2>
-            <p className="text-sm text-blue-100">Online</p>
-          </div>
+          </button>
         </div>
       </div>
       
@@ -127,9 +168,13 @@ const AICoach: React.FC = () => {
                     : 'bg-white border border-gray-200 shadow-sm rounded-tl-none'
                 }`}
               >
-                <p className={message.sender === 'user' ? 'text-white' : 'text-gray-800'}>
-                  {message.text}
-                </p>
+                {message.sender === 'user' ? (
+                  <p className="text-white">{message.text}</p>
+                ) : (
+                  <div className="prose prose-sm max-w-none text-gray-800">
+                    <ReactMarkdown>{message.text}</ReactMarkdown>
+                  </div>
+                )}
                 <p 
                   className={`text-xs mt-1 text-right ${
                     message.sender === 'user' ? 'text-blue-100' : 'text-gray-500'
