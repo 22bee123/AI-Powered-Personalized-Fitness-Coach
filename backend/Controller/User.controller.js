@@ -1,69 +1,131 @@
 import User from '../models/user.model.js';
 import WorkoutPlan from '../models/fitness.model.js';
 import NutritionPlan from '../models/nutrition.model.js';
+import jwt from 'jsonwebtoken';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'; // Use environment variable in production
 
 /**
- * Create or update a user based on Clerk authentication data
+ * Register a new user
  */
-export const createOrUpdateUser = async (req, res) => {
+export const registerUser = async (req, res) => {
   try {
-    const { clerkId, email, firstName, lastName, profileDetails } = req.body;
+    const { email, password, firstName, lastName, profileDetails } = req.body;
 
-    if (!clerkId || !email) {
-      return res.status(400).json({ message: 'Clerk ID and email are required' });
+    if (!email || !password) {
+      return res.status(400).json({ message: 'Email and password are required' });
     }
 
     // Check if user already exists
-    let user = await User.findOne({ clerkId });
-
-    if (user) {
-      // Update existing user
-      user.email = email;
-      if (firstName) user.firstName = firstName;
-      if (lastName) user.lastName = lastName;
-      if (profileDetails) user.profileDetails = { ...user.profileDetails, ...profileDetails };
-      user.updatedAt = Date.now();
-
-      await user.save();
-      return res.status(200).json({ message: 'User updated successfully', user });
-    } else {
-      // Create new user
-      user = new User({
-        clerkId,
-        email,
-        firstName,
-        lastName,
-        profileDetails: profileDetails || {},
-        workoutPlans: [],
-        nutritionPlans: [],
-        activePlanIds: {}
-      });
-
-      await user.save();
-      return res.status(201).json({ message: 'User created successfully', user });
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: 'User with this email already exists' });
     }
+
+    // Create new user
+    const user = new User({
+      email,
+      password, // Will be hashed by the pre-save hook
+      firstName,
+      lastName,
+      profileDetails: profileDetails || {},
+      workoutPlans: [],
+      nutritionPlans: [],
+      activePlanIds: {}
+    });
+
+    await user.save();
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId: user._id, email: user.email },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    // Return user data without password
+    const userResponse = {
+      _id: user._id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      profileDetails: user.profileDetails
+    };
+
+    return res.status(201).json({ 
+      message: 'User registered successfully', 
+      user: userResponse,
+      token
+    });
   } catch (error) {
-    console.error('Error in createOrUpdateUser:', error);
+    console.error('Error in registerUser:', error);
     return res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
 /**
- * Get user by Clerk ID
+ * Login user
  */
-export const getUserByClerkId = async (req, res) => {
+export const loginUser = async (req, res) => {
   try {
-    const { clerkId } = req.params;
+    const { email, password } = req.body;
 
-    if (!clerkId) {
-      return res.status(400).json({ message: 'Clerk ID is required' });
+    if (!email || !password) {
+      return res.status(400).json({ message: 'Email and password are required' });
     }
 
-    const user = await User.findOne({ clerkId })
+    // Find user by email
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
+    // Verify password
+    const isPasswordValid = await user.comparePassword(password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId: user._id, email: user.email },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    // Return user data without password
+    const userResponse = {
+      _id: user._id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      profileDetails: user.profileDetails
+    };
+
+    return res.status(200).json({ 
+      message: 'Login successful', 
+      user: userResponse,
+      token
+    });
+  } catch (error) {
+    console.error('Error in loginUser:', error);
+    return res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+/**
+ * Get user profile
+ */
+export const getUserProfile = async (req, res) => {
+  try {
+    const userId = req.user.userId; // Set by auth middleware
+
+    const user = await User.findById(userId)
       .populate('workoutPlans')
       .populate('nutritionPlans')
       .populate('activePlanIds.workout')
-      .populate('activePlanIds.nutrition');
+      .populate('activePlanIds.nutrition')
+      .select('-password'); // Exclude password
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -71,7 +133,7 @@ export const getUserByClerkId = async (req, res) => {
 
     return res.status(200).json({ user });
   } catch (error) {
-    console.error('Error in getUserByClerkId:', error);
+    console.error('Error in getUserProfile:', error);
     return res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
@@ -81,24 +143,27 @@ export const getUserByClerkId = async (req, res) => {
  */
 export const updateUserProfile = async (req, res) => {
   try {
-    const { clerkId } = req.params;
-    const { profileDetails } = req.body;
+    const userId = req.user.userId; // Set by auth middleware
+    const { firstName, lastName, profileDetails } = req.body;
 
-    if (!clerkId) {
-      return res.status(400).json({ message: 'Clerk ID is required' });
-    }
-
-    const user = await User.findOne({ clerkId });
+    const user = await User.findById(userId);
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    user.profileDetails = { ...user.profileDetails, ...profileDetails };
+    if (firstName) user.firstName = firstName;
+    if (lastName) user.lastName = lastName;
+    if (profileDetails) user.profileDetails = { ...user.profileDetails, ...profileDetails };
     user.updatedAt = Date.now();
 
     await user.save();
-    return res.status(200).json({ message: 'User profile updated successfully', user });
+    
+    // Return user without password
+    const userResponse = user.toObject();
+    delete userResponse.password;
+    
+    return res.status(200).json({ message: 'User profile updated successfully', user: userResponse });
   } catch (error) {
     console.error('Error in updateUserProfile:', error);
     return res.status(500).json({ message: 'Server error', error: error.message });
@@ -110,18 +175,14 @@ export const updateUserProfile = async (req, res) => {
  */
 export const setActiveWorkoutPlan = async (req, res) => {
   try {
-    const { clerkId } = req.params;
+    const userId = req.user.userId; // Set by auth middleware
     const { workoutPlanId } = req.body;
-
-    if (!clerkId) {
-      return res.status(400).json({ message: 'Clerk ID is required' });
-    }
 
     if (!workoutPlanId) {
       return res.status(400).json({ message: 'Workout plan ID is required' });
     }
 
-    const user = await User.findOne({ clerkId });
+    const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -151,18 +212,14 @@ export const setActiveWorkoutPlan = async (req, res) => {
  */
 export const setActiveNutritionPlan = async (req, res) => {
   try {
-    const { clerkId } = req.params;
+    const userId = req.user.userId; // Set by auth middleware
     const { nutritionPlanId } = req.body;
-
-    if (!clerkId) {
-      return res.status(400).json({ message: 'Clerk ID is required' });
-    }
 
     if (!nutritionPlanId) {
       return res.status(400).json({ message: 'Nutrition plan ID is required' });
     }
 
-    const user = await User.findOne({ clerkId });
+    const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -192,18 +249,14 @@ export const setActiveNutritionPlan = async (req, res) => {
  */
 export const addWorkoutPlanToUser = async (req, res) => {
   try {
-    const { clerkId } = req.params;
+    const userId = req.user.userId; // Set by auth middleware
     const { workoutPlanId } = req.body;
-
-    if (!clerkId) {
-      return res.status(400).json({ message: 'Clerk ID is required' });
-    }
 
     if (!workoutPlanId) {
       return res.status(400).json({ message: 'Workout plan ID is required' });
     }
 
-    const user = await User.findOne({ clerkId });
+    const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -214,15 +267,18 @@ export const addWorkoutPlanToUser = async (req, res) => {
       return res.status(404).json({ message: 'Workout plan not found' });
     }
 
-    // Check if the plan is already in the user's plans
-    if (!user.workoutPlans.includes(workoutPlanId)) {
-      user.workoutPlans.push(workoutPlanId);
-      await user.save();
+    // Check if the workout plan is already added to the user
+    if (user.workoutPlans.includes(workoutPlanId)) {
+      return res.status(400).json({ message: 'Workout plan already added to user' });
     }
+
+    // Add the workout plan to the user
+    user.workoutPlans.push(workoutPlanId);
+    await user.save();
 
     return res.status(200).json({ 
       message: 'Workout plan added to user successfully', 
-      workoutPlans: user.workoutPlans 
+      workoutPlanId 
     });
   } catch (error) {
     console.error('Error in addWorkoutPlanToUser:', error);
@@ -235,18 +291,14 @@ export const addWorkoutPlanToUser = async (req, res) => {
  */
 export const addNutritionPlanToUser = async (req, res) => {
   try {
-    const { clerkId } = req.params;
+    const userId = req.user.userId; // Set by auth middleware
     const { nutritionPlanId } = req.body;
-
-    if (!clerkId) {
-      return res.status(400).json({ message: 'Clerk ID is required' });
-    }
 
     if (!nutritionPlanId) {
       return res.status(400).json({ message: 'Nutrition plan ID is required' });
     }
 
-    const user = await User.findOne({ clerkId });
+    const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -257,15 +309,18 @@ export const addNutritionPlanToUser = async (req, res) => {
       return res.status(404).json({ message: 'Nutrition plan not found' });
     }
 
-    // Check if the plan is already in the user's plans
-    if (!user.nutritionPlans.includes(nutritionPlanId)) {
-      user.nutritionPlans.push(nutritionPlanId);
-      await user.save();
+    // Check if the nutrition plan is already added to the user
+    if (user.nutritionPlans.includes(nutritionPlanId)) {
+      return res.status(400).json({ message: 'Nutrition plan already added to user' });
     }
+
+    // Add the nutrition plan to the user
+    user.nutritionPlans.push(nutritionPlanId);
+    await user.save();
 
     return res.status(200).json({ 
       message: 'Nutrition plan added to user successfully', 
-      nutritionPlans: user.nutritionPlans 
+      nutritionPlanId 
     });
   } catch (error) {
     console.error('Error in addNutritionPlanToUser:', error);

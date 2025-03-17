@@ -23,6 +23,7 @@ import {
 } from "../Controller/Nutrition.controller.js";
 import WorkoutPlan from "../models/fitness.model.js";
 import NutritionPlan from "../models/nutrition.model.js";
+import { ClerkExpressRequireAuth } from '@clerk/clerk-sdk-node';
 
 const router = express.Router();
 
@@ -34,13 +35,33 @@ router.get("/workout-plan/:difficulty", getWorkoutPlan);
 // This allows the routes to work even if the clerkMiddleware is not properly initialized
 const fallbackMiddleware = (req, res, next) => {
   console.log("Using fallback middleware - no authentication check");
+  // For debugging, log the auth header if it exists
+  if (req.headers.authorization) {
+    console.log("Authorization header exists but not being processed");
+  }
   next();
 };
 
 // Function to get the appropriate middleware
 const getAuthMiddleware = (req) => {
-  // If req.app.locals.clerkMiddleware exists, use it, otherwise use the fallback
-  return req.app.locals.clerkMiddleware || fallbackMiddleware;
+  // If CLERK_SECRET_KEY exists, use ClerkExpressRequireAuth, otherwise use fallback
+  if (process.env.CLERK_SECRET_KEY) {
+    console.log("Using Clerk authentication middleware");
+    return ClerkExpressRequireAuth({
+      onError: (err, req, res) => {
+        console.error('Clerk authentication error:', err);
+        console.error('Auth headers:', req.headers.authorization ? 'Present' : 'Missing');
+        return res.status(401).json({ 
+          error: 'Unauthorized', 
+          message: 'Authentication failed. Please ensure you are logged in and your session is valid.',
+          details: process.env.NODE_ENV === 'development' ? err.message : undefined
+        });
+      }
+    });
+  } else {
+    console.warn("WARNING: Using fallback middleware because CLERK_SECRET_KEY is not set");
+    return fallbackMiddleware;
+  }
 };
 
 // Protected routes (authentication required)
