@@ -666,14 +666,29 @@ const saveWorkoutPlan = async (req, res) => {
     const requestClerkId = req.auth?.userId || clerkId;
     
     if (!requestClerkId) {
-      return res.status(401).json({ error: "Authentication required" });
+      console.error("Authentication failed: No clerkId provided in request or body");
+      return res.status(401).json({ 
+        error: "Authentication required", 
+        details: "No clerk ID found in request. Make sure you're logged in and the token is valid."
+      });
     }
 
+    console.log(`Processing workout plan save for user with clerkId: ${requestClerkId}`);
+    
     // Find the user in our database
     let user = await User.findOne({ clerkId: requestClerkId });
     
     if (!user) {
-      return res.status(404).json({ error: "User not found. Please complete your profile first." });
+      // Create a new user if they don't exist yet
+      user = new User({
+        clerkId: requestClerkId,
+        email: req.body.email || 'unknown@example.com', // Fallback email
+        workoutPlans: [],
+        nutritionPlans: [],
+        activePlanIds: {}
+      });
+      await user.save();
+      console.log(`Created new user with clerkId: ${requestClerkId}`);
     }
 
     // Use parsed data if available, otherwise use the provided data or empty arrays
@@ -710,9 +725,18 @@ const saveWorkoutPlan = async (req, res) => {
     // Save the workout plan
     const savedPlan = await workoutPlan.save();
     
-    // Add the workout plan to the user's workoutPlans array
-    user.workoutPlans.push(savedPlan._id);
-    await user.save();
+    // Add the workout plan to the user's workoutPlans array if it's not already there
+    if (!user.workoutPlans.includes(savedPlan._id)) {
+      user.workoutPlans.push(savedPlan._id);
+      
+      // If this is the user's first workout plan, set it as active
+      if (!user.activePlanIds.workout) {
+        user.activePlanIds.workout = savedPlan._id;
+      }
+      
+      await user.save();
+      console.log(`Added workout plan ${savedPlan._id} to user ${user._id}`);
+    }
     
     res.status(201).json({
       message: "Workout plan saved successfully",
@@ -742,21 +766,73 @@ const getUserWorkoutPlans = async (req, res) => {
     const user = await User.findOne({ clerkId: requestClerkId });
     
     if (!user) {
-      return res.status(404).json({ error: "User not found" });
+      // Create a new user if they don't exist
+      const newUser = new User({
+        clerkId: requestClerkId,
+        email: 'unknown@example.com', // Will be updated when user completes profile
+        workoutPlans: [],
+        nutritionPlans: [],
+        activePlanIds: {}
+      });
+      await newUser.save();
+      console.log(`Created new user with clerkId: ${requestClerkId}`);
+      
+      return res.json({
+        count: 0,
+        plans: []
+      });
     }
     
     // First, log all workout plans in the database to debug
     const allPlans = await WorkoutPlan.find({});
     console.log(`Total workout plans in database: ${allPlans.length}`);
     
-    // Find all workout plans for this user by clerkId
-    const workoutPlans = await WorkoutPlan.find({ clerkId: requestClerkId }).sort({ createdAt: -1 });
+    // Find workout plans using multiple methods to ensure we get all plans for this user
+    const workoutPlansByClerkId = await WorkoutPlan.find({ clerkId: requestClerkId }).sort({ createdAt: -1 });
+    const workoutPlansByUserId = await WorkoutPlan.find({ userId: user._id.toString() }).sort({ createdAt: -1 });
     
-    console.log(`Found ${workoutPlans.length} plans for user with clerkId ${requestClerkId}`);
+    // Combine the results and remove duplicates
+    const combinedPlans = [...workoutPlansByClerkId];
+    
+    // Add plans from workoutPlansByUserId that aren't already in combinedPlans
+    workoutPlansByUserId.forEach(plan => {
+      if (!combinedPlans.some(existingPlan => existingPlan._id.toString() === plan._id.toString())) {
+        combinedPlans.push(plan);
+      }
+    });
+    
+    // Also get plans from user.workoutPlans that might not be found by the above queries
+    if (user.workoutPlans && user.workoutPlans.length > 0) {
+      const userPlanIds = user.workoutPlans.map(id => id.toString());
+      const additionalPlans = await WorkoutPlan.find({ _id: { $in: userPlanIds } });
+      
+      additionalPlans.forEach(plan => {
+        if (!combinedPlans.some(existingPlan => existingPlan._id.toString() === plan._id.toString())) {
+          combinedPlans.push(plan);
+        }
+      });
+    }
+    
+    // Sort by createdAt in descending order (newest first)
+    combinedPlans.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    
+    console.log(`Found ${combinedPlans.length} plans for user with clerkId ${requestClerkId}`);
+    
+    // Update user's workoutPlans array if we found plans that aren't in it
+    const planIdsInUser = user.workoutPlans.map(id => id.toString());
+    const planIdsToAdd = combinedPlans
+      .filter(plan => !planIdsInUser.includes(plan._id.toString()))
+      .map(plan => plan._id);
+    
+    if (planIdsToAdd.length > 0) {
+      user.workoutPlans.push(...planIdsToAdd);
+      await user.save();
+      console.log(`Added ${planIdsToAdd.length} missing workout plans to user ${user._id}`);
+    }
     
     res.json({
-      count: workoutPlans.length,
-      plans: workoutPlans
+      count: combinedPlans.length,
+      plans: combinedPlans
     });
   } catch (error) {
     console.error("Error fetching workout plans:", error);
@@ -938,347 +1014,543 @@ const toggleFavoriteWorkoutPlan = async (req, res) => {
 
 // Helper function to parse the workout plan text into structured data
 const parseWorkoutPlan = (rawPlan) => {
-  const result = {
-    schedule: [],
-    exercises: [],
-    warmup: [],
-    cooldown: [],
-    nutrition: [],
-    recovery: [],
-    weekSchedule: {
-      Monday: createDefaultDayWorkout('Monday'),
-      Tuesday: createDefaultDayWorkout('Tuesday'),
-      Wednesday: createDefaultDayWorkout('Wednesday'),
-      Thursday: createDefaultDayWorkout('Thursday'),
-      Friday: createDefaultDayWorkout('Friday'),
-      Saturday: createDefaultDayWorkout('Saturday'),
-      Sunday: createDefaultDayWorkout('Sunday')
-    }
-  };
-  
-  // Helper function to create a default day workout
-  function createDefaultDayWorkout(day) {
-    return {
-      day: day,
-      focus: 'Rest',
-      description: 'Rest day',
-      workoutType: 'rest',
+  try {
+    console.log("Parsing workout plan...");
+    
+    // Initialize the result object
+    const result = {
+      schedule: [],
       exercises: [],
-      isRestDay: true
+      warmup: [],
+      cooldown: [],
+      nutrition: [],
+      recovery: [],
+      weekSchedule: {}
+    };
+    
+    // Define the days of the week
+    const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    
+    // Initialize the week schedule with empty days
+    daysOfWeek.forEach(day => {
+      result.weekSchedule[day] = {
+        day: day,
+        focus: '',
+        description: '',
+        workoutType: 'strength',
+        exercises: [],
+        isRestDay: false
+      };
+    });
+    
+    // Split the raw plan into sections
+    const sections = rawPlan.split(/(?:^|\n)#+\s+/);
+    
+    // Process each section
+    sections.forEach(section => {
+      if (!section.trim()) return;
+      
+      // Extract the section title and content
+      const lines = section.split('\n');
+      const sectionTitle = lines[0].trim();
+      const sectionContent = lines.slice(1).join('\n').trim();
+      
+      console.log(`Processing section: ${sectionTitle}`);
+      
+      // Process the section based on its title
+      if (sectionTitle.toLowerCase().includes('weekly schedule') || 
+          sectionTitle.toLowerCase().includes('workout schedule') ||
+          sectionTitle.toLowerCase().includes('weekly workout plan')) {
+        // Process the weekly schedule
+        processWeeklySchedule(sectionContent, result);
+      } else if (sectionTitle.toLowerCase().includes('warm') && sectionTitle.toLowerCase().includes('up')) {
+        // Process warm-up exercises
+        result.warmup = extractWarmupExercises(sectionContent);
+      } else if (sectionTitle.toLowerCase().includes('cool') && sectionTitle.toLowerCase().includes('down')) {
+        // Process cool-down exercises
+        result.cooldown = extractCooldownExercises(sectionContent);
+      } else if (sectionTitle.toLowerCase().includes('nutrition') || 
+                sectionTitle.toLowerCase().includes('diet')) {
+        // Process nutrition advice
+        result.nutrition = extractNutritionAdvice(sectionContent);
+      } else if (sectionTitle.toLowerCase().includes('recovery') || 
+                sectionTitle.toLowerCase().includes('rest')) {
+        // Process recovery tips
+        result.recovery = extractRecoveryTips(sectionContent);
+      } else {
+        // Check if this section is for a specific day
+        for (const day of daysOfWeek) {
+          if (sectionTitle.toLowerCase().includes(day.toLowerCase())) {
+            // This section is for a specific day
+            processDayWorkout(day, sectionContent, result);
+            break;
+          }
+        }
+      }
+    });
+    
+    // Extract exercises from the weekly schedule
+    extractExercisesFromSchedule(result);
+    
+    // Ensure each day has a focus
+    ensureDayFocus(result);
+    
+    console.log("Parsing complete.");
+    return result;
+  } catch (error) {
+    console.error("Error parsing workout plan:", error);
+    return {
+      schedule: [],
+      exercises: [],
+      warmup: [],
+      cooldown: [],
+      nutrition: [],
+      recovery: [],
+      weekSchedule: {}
     };
   }
+};
+
+// Helper function to process the weekly schedule
+const processWeeklySchedule = (content, result) => {
+  const lines = content.split('\n');
+  let currentDay = null;
   
-  // Helper function to clean markdown formatting and map workout types to valid enum values
-  function cleanWorkoutType(workoutType) {
-    // Remove markdown formatting (asterisks)
-    const cleanedType = workoutType.replace(/\*\*/g, '').trim().toLowerCase();
+  lines.forEach(line => {
+    const trimmedLine = line.trim();
+    if (!trimmedLine) return;
     
-    // Map to valid enum values
-    if (cleanedType.includes('strength') || cleanedType.includes('resistance')) {
-      return 'strength';
-    } else if (cleanedType.includes('cardio') || cleanedType.includes('aerobic')) {
-      return 'cardio';
-    } else if (cleanedType.includes('hiit') || cleanedType.includes('interval')) {
-      return 'hiit';
-    } else if (cleanedType.includes('flexibility') || cleanedType.includes('mobility') || cleanedType.includes('stretch')) {
-      return 'flexibility';
-    } else if (cleanedType.includes('rest')) {
-      return 'rest';
-    } else if (cleanedType.includes('recovery') || cleanedType.includes('active recovery')) {
-      return 'recovery';
-    } else {
-      return 'other';
+    // Check if this line starts with a day of the week
+    const dayMatch = trimmedLine.match(/^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday):/i);
+    if (dayMatch) {
+      currentDay = dayMatch[1];
+      const focusMatch = trimmedLine.match(/:(.*)/);
+      const focus = focusMatch ? focusMatch[1].trim() : '';
+      
+      // Add to the schedule
+      result.schedule.push({
+        day: currentDay,
+        workouts: [{
+          type: focus,
+          description: focus
+        }]
+      });
+      
+      // Update the week schedule
+      if (result.weekSchedule[currentDay]) {
+        result.weekSchedule[currentDay].focus = focus;
+        result.weekSchedule[currentDay].description = focus;
+        result.weekSchedule[currentDay].isRestDay = focus.toLowerCase().includes('rest');
+        result.weekSchedule[currentDay].workoutType = determineWorkoutType(focus);
+      }
+    } else if (currentDay && result.weekSchedule[currentDay]) {
+      // This line contains additional details for the current day
+      const existingDescription = result.weekSchedule[currentDay].description;
+      result.weekSchedule[currentDay].description = existingDescription 
+        ? `${existingDescription}\n${trimmedLine}`
+        : trimmedLine;
     }
+  });
+};
+
+// Helper function to process a day's workout
+const processDayWorkout = (day, content, result) => {
+  // Extract the focus from the content
+  const focusMatch = content.match(/focus:?\s*([^,\n]+)/i);
+  const focus = focusMatch ? focusMatch[1].trim() : determineWorkoutFocus(content);
+  
+  // Check if it's a rest day
+  const isRestDay = content.toLowerCase().includes('rest day') || 
+                    focus.toLowerCase().includes('rest');
+  
+  // Determine the workout type
+  const workoutType = determineWorkoutType(content);
+  
+  // Extract exercises for this day
+  const exercises = extractExercisesFromDay(content);
+  
+  // Update the week schedule
+  result.weekSchedule[day] = {
+    day: day,
+    focus: focus,
+    description: content.trim(),
+    workoutType: workoutType,
+    exercises: exercises,
+    isRestDay: isRestDay
+  };
+  
+  // Add to the schedule
+  result.schedule.push({
+    day: day,
+    workouts: [{
+      type: focus,
+      description: content.trim()
+    }]
+  });
+  
+  // Add exercises to the overall exercises list
+  exercises.forEach(exercise => {
+    if (!result.exercises.some(e => e.name === exercise.name)) {
+      result.exercises.push(exercise);
+    }
+  });
+};
+
+// Helper function to extract exercises from a day's content
+const extractExercisesFromDay = (content) => {
+  const exercises = [];
+  
+  // Split the content into lines
+  const lines = content.split('\n');
+  
+  // Look for exercise blocks
+  let inExerciseBlock = false;
+  let exerciseBlock = '';
+  
+  lines.forEach(line => {
+    const trimmedLine = line.trim();
+    
+    // Check if this line starts an exercise block
+    if (trimmedLine.match(/exercises:/i) || 
+        trimmedLine.match(/workout:/i) ||
+        trimmedLine === '**Exercises:**' ||
+        trimmedLine === '**Workout:**') {
+      inExerciseBlock = true;
+      return;
+    }
+    
+    // If we're in an exercise block, collect the lines
+    if (inExerciseBlock) {
+      // Check if this line ends the exercise block
+      if (trimmedLine.match(/^#+\s/) || 
+          trimmedLine.match(/^(warm-up|cool-down|nutrition|recovery):/i)) {
+        inExerciseBlock = false;
+        
+        // Process the collected exercise block
+        const extractedExercises = extractExercisesFromBlock(exerciseBlock);
+        exercises.push(...extractedExercises);
+        
+        exerciseBlock = '';
+      } else {
+        // Add this line to the exercise block
+        exerciseBlock += trimmedLine + '\n';
+      }
+    }
+  });
+  
+  // Process any remaining exercise block
+  if (exerciseBlock.trim()) {
+    const extractedExercises = extractExercisesFromBlock(exerciseBlock);
+    exercises.push(...extractedExercises);
   }
   
-  // Parse exercises first so we can reference them in the schedule
-  const exercisesMatch = rawPlan.match(/exercises:?([\s\S]*?)(?:warm[- ]?up:|cool[- ]?down:|nutrition:|recovery:|schedule:|$)/i);
-  if (exercisesMatch && exercisesMatch[1]) {
-    const exercisesText = exercisesMatch[1].trim();
+  // If no exercises were found in blocks, try to extract them from the entire content
+  if (exercises.length === 0) {
+    const extractedExercises = extractExercisesFromBlock(content);
+    exercises.push(...extractedExercises);
+  }
+  
+  return exercises;
+};
+
+// Helper function to extract exercises from a block of text
+const extractExercisesFromBlock = (block) => {
+  const exercises = [];
+  
+  // Split the block into lines
+  const lines = block.split('\n');
+  
+  // Process each line as a potential exercise
+  lines.forEach(line => {
+    const trimmedLine = line.trim();
+    if (!trimmedLine) return;
     
-    // Split by exercise entries (usually separated by blank lines or numbered/bullet points)
-    const exerciseBlocks = exercisesText.split(/\n\s*\n|\n(?=\d+\.|\*|\-\s)/);
+    // Check if this line contains an exercise
+    const exerciseMatch = trimmedLine.match(/^[*-]\s+(.*)/);
+    if (exerciseMatch) {
+      const exerciseText = exerciseMatch[1].trim();
+      
+      // Extract exercise details
+      const nameMatch = exerciseText.match(/^([^:,]+)/) || 
+                        exerciseText.match(/^(\d+\.\s*)?([^:,]+)/);
+      const setsMatch = exerciseText.match(/sets:?\s*(\d+)/i) || 
+                        exerciseText.match(/(\d+)\s*sets/i);
+      const repsMatch = exerciseText.match(/reps:?\s*([^,]+)/i) || 
+                        exerciseText.match(/(\d+(?:-\d+)?(?:\s*to\s*\d+)?)\s*reps/i);
+      const restMatch = exerciseText.match(/rest:?\s*([^,]+)/i) || 
+                        exerciseText.match(/rest\s*for\s*([^,]+)/i);
+      
+      if (nameMatch) {
+        const exercise = {
+          name: nameMatch[1].trim(),
+          sets: setsMatch ? parseInt(setsMatch[1]) : undefined,
+          reps: repsMatch ? repsMatch[1].trim() : undefined,
+          rest: restMatch ? restMatch[1].trim() : undefined
+        };
+        
+        exercises.push(exercise);
+      }
+    }
+  });
+  
+  // If no exercises were found with bullet points, try to extract them from the text
+  if (exercises.length === 0) {
+    // Split the block into potential exercise blocks
+    const exerciseBlocks = block.split(/\d+\.\s+|\n\s*\n/);
     
     exerciseBlocks.forEach(block => {
       if (!block.trim()) return;
       
       const nameMatch = block.match(/name:?\s*([^,\n]+)/i) || 
-                       block.match(/^[*-]?\s*(\d+\.\s*)?([^,\n:]+)/);
+                       block.match(/^[*-]?\s*(\d+\.|\*|\-\s)?([^,\n:]+)/);
       
       if (nameMatch) {
         const exercise = {
-          name: (nameMatch[2] || nameMatch[1]).trim()
+          name: nameMatch[2] ? nameMatch[2].trim() : nameMatch[1].trim(),
+          sets: undefined,
+          reps: undefined,
+          rest: undefined
         };
         
-        const setsMatch = block.match(/sets:?\s*(\d+)/i);
+        // Try to extract sets, reps, and rest
+        const setsMatch = block.match(/sets:?\s*(\d+)/i) || 
+                          block.match(/(\d+)\s*sets/i);
+        const repsMatch = block.match(/reps:?\s*([^,\n]+)/i) || 
+                          block.match(/(\d+(?:-\d+)?(?:\s*to\s*\d+)?)\s*reps/i);
+        const restMatch = block.match(/rest:?\s*([^,\n]+)/i) || 
+                          block.match(/rest\s*for\s*([^,\n]+)/i);
+        
         if (setsMatch) exercise.sets = parseInt(setsMatch[1]);
-        
-        const repsMatch = block.match(/reps:?\s*([^,\n]+)/i);
         if (repsMatch) exercise.reps = repsMatch[1].trim();
-        
-        const restMatch = block.match(/rest:?\s*([^,\n]+)/i);
         if (restMatch) exercise.rest = restMatch[1].trim();
         
-        const durationMatch = block.match(/duration:?\s*([^,\n]+)/i);
-        if (durationMatch) exercise.duration = durationMatch[1].trim();
-        
-        const instructionsMatch = block.match(/instructions:?\s*([^,\n]+(?:\n[^,\n]+)*)/i) || 
-                                 block.match(/form:?\s*([^,\n]+(?:\n[^,\n]+)*)/i);
-        if (instructionsMatch) exercise.instructions = instructionsMatch[1].trim();
-        
-        const muscleGroupMatch = block.match(/muscle group:?\s*([^,\n]+)/i) || 
-                                block.match(/target:?\s*([^,\n]+)/i);
-        if (muscleGroupMatch) exercise.muscleGroup = muscleGroupMatch[1].trim();
-        
-        result.exercises.push(exercise);
+        exercises.push(exercise);
       }
     });
   }
   
-  // Parse schedule
-  const scheduleMatch = rawPlan.match(/schedule:?([\s\S]*?)(?:exercises:|warm[- ]?up:|cool[- ]?down:|nutrition:|recovery:|$)/i);
-  if (scheduleMatch && scheduleMatch[1]) {
-    const scheduleText = scheduleMatch[1].trim();
-    const scheduleLines = scheduleText.split('\n').filter(line => line.trim().length > 0);
+  return exercises;
+};
+
+// Helper function to extract warm-up exercises
+const extractWarmupExercises = (content) => {
+  const warmupExercises = [];
+  
+  // Split the content into lines
+  const lines = content.split('\n');
+  
+  // Process each line as a potential warm-up exercise
+  lines.forEach(line => {
+    const trimmedLine = line.trim();
+    if (!trimmedLine) return;
     
-    scheduleLines.forEach(line => {
-      const dayMatch = line.match(/^([A-Za-z]+):\s*(.+?)(?:\s*-\s*|\s*–\s*|\s*:\s*)(.+)$/);
+    // Check if this line contains a warm-up exercise
+    const exerciseMatch = trimmedLine.match(/^[*-]\s+(.*)/);
+    if (exerciseMatch) {
+      const exerciseText = exerciseMatch[1].trim();
       
-      if (dayMatch) {
-        const day = dayMatch[1].trim();
-        const workoutType = dayMatch[2].trim();
-        const description = dayMatch[3].trim();
-        
-        // Check if it's a valid day of the week
-        if (['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].includes(day)) {
-          // Extract focus from description
-          let focus = description.split('.')[0].trim();
-          if (!focus) focus = workoutType;
-          
-          // Determine if it's a rest day
-          const isRestDay = workoutType.toLowerCase().includes('rest') || 
-                           description.toLowerCase().includes('rest day');
-          
-          // Clean and map the workout type to a valid enum value
-          const cleanedWorkoutType = cleanWorkoutType(workoutType);
-          
-          // Update the week schedule for this day
-          result.weekSchedule[day] = {
-            day,
-            focus,
-            description,
-            workoutType: cleanedWorkoutType,
-            exercises: [],
-            isRestDay
-          };
-          
-          // Also add to the schedule array for backward compatibility
-          result.schedule.push({
-            day,
-            workouts: [{
-              type: workoutType,
-              description
-            }]
-          });
-        }
-      }
-    });
-  }
-  
-  // Parse warm-up
-  const warmupMatch = rawPlan.match(/warm[- ]?up:?([\s\S]*?)(?:exercises:|cool[- ]?down:|nutrition:|recovery:|schedule:|$)/i);
-  if (warmupMatch && warmupMatch[1]) {
-    const warmupText = warmupMatch[1].trim();
-    const warmupItems = warmupText.split(/\n/).filter(line => line.trim().length > 0);
-    
-    warmupItems.forEach(item => {
-      const cleanItem = item.trim().replace(/^[*-]\s*/, '');
+      // Extract exercise details
+      const nameMatch = exerciseText.match(/^([^:,]+)/);
+      const durationMatch = exerciseText.match(/duration:?\s*([^,]+)/i) || 
+                           exerciseText.match(/for\s*([^,]+)/i);
+      const repsMatch = exerciseText.match(/reps:?\s*([^,]+)/i) || 
+                        exerciseText.match(/(\d+(?:-\d+)?(?:\s*to\s*\d+)?)\s*reps/i);
       
-      // Try to extract name and duration/reps
-      const itemMatch = cleanItem.match(/^([^-]+)(?:-\s*(.+))?$/);
-      if (itemMatch) {
-        const name = itemMatch[1].trim();
-        const details = itemMatch[2] ? itemMatch[2].trim() : '';
+      if (nameMatch) {
+        const exercise = {
+          name: nameMatch[1].trim(),
+          duration: durationMatch ? durationMatch[1].trim() : undefined,
+          reps: repsMatch ? repsMatch[1].trim() : undefined
+        };
         
-        const warmupExercise = { name };
-        
-        // Check if details contain duration or reps
-        if (details) {
-          if (details.toLowerCase().includes('min') || 
-              details.toLowerCase().includes('sec') || 
-              details.match(/\d+\s*s(?:econds)?/) || 
-              details.match(/\d+\s*m(?:inutes)?/)) {
-            warmupExercise.duration = details;
-          } else {
-            warmupExercise.reps = details;
-          }
-        }
-        
-        result.warmup.push(warmupExercise);
+        warmupExercises.push(exercise);
       }
-    });
-  }
+    }
+  });
   
-  // Parse cool-down
-  const cooldownMatch = rawPlan.match(/cool[- ]?down:?([\s\S]*?)(?:exercises:|warm[- ]?up:|nutrition:|recovery:|schedule:|$)/i);
-  if (cooldownMatch && cooldownMatch[1]) {
-    const cooldownText = cooldownMatch[1].trim();
-    const cooldownItems = cooldownText.split(/\n/).filter(line => line.trim().length > 0);
+  return warmupExercises;
+};
+
+// Helper function to extract cool-down exercises
+const extractCooldownExercises = (content) => {
+  const cooldownExercises = [];
+  
+  // Split the content into lines
+  const lines = content.split('\n');
+  
+  // Process each line as a potential cool-down exercise
+  lines.forEach(line => {
+    const trimmedLine = line.trim();
+    if (!trimmedLine) return;
     
-    cooldownItems.forEach(item => {
-      const cleanItem = item.trim().replace(/^[*-]\s*/, '');
+    // Check if this line contains a cool-down exercise
+    const exerciseMatch = trimmedLine.match(/^[*-]\s+(.*)/);
+    if (exerciseMatch) {
+      const exerciseText = exerciseMatch[1].trim();
       
-      // Try to extract name and duration
-      const itemMatch = cleanItem.match(/^([^-]+)(?:-\s*(.+))?$/);
-      if (itemMatch) {
-        const name = itemMatch[1].trim();
-        const duration = itemMatch[2] ? itemMatch[2].trim() : '';
-        
-        result.cooldown.push({
-          name,
-          duration
-        });
-      }
-    });
-  }
-  
-  // Parse nutrition
-  const nutritionMatch = rawPlan.match(/nutrition:?([\s\S]*?)(?:exercises:|warm[- ]?up:|cool[- ]?down:|recovery:|schedule:|$)/i);
-  if (nutritionMatch && nutritionMatch[1]) {
-    const nutritionText = nutritionMatch[1].trim();
-    const nutritionItems = nutritionText.split(/\n/).filter(line => line.trim().length > 0);
-    
-    nutritionItems.forEach(item => {
-      const cleanItem = item.trim().replace(/^[*-]\s*/, '');
-      if (cleanItem) {
-        result.nutrition.push(cleanItem);
-      }
-    });
-  }
-  
-  // Parse recovery
-  const recoveryMatch = rawPlan.match(/recovery:?([\s\S]*?)(?:exercises:|warm[- ]?up:|cool[- ]?down:|nutrition:|schedule:|$)/i);
-  if (recoveryMatch && recoveryMatch[1]) {
-    const recoveryText = recoveryMatch[1].trim();
-    const recoveryItems = recoveryText.split(/\n/).filter(line => line.trim().length > 0);
-    
-    recoveryItems.forEach(item => {
-      const cleanItem = item.trim().replace(/^[*-]\s*/, '');
-      if (cleanItem) {
-        result.recovery.push(cleanItem);
-      }
-    });
-  }
-  
-  // After parsing all exercises and the schedule, associate exercises with each day
-  if (result.exercises.length > 0) {
-    // For each day in the week schedule
-    Object.keys(result.weekSchedule).forEach(day => {
-      const dayWorkout = result.weekSchedule[day];
+      // Extract exercise details
+      const nameMatch = exerciseText.match(/^([^:,]+)/);
+      const durationMatch = exerciseText.match(/duration:?\s*([^,]+)/i) || 
+                           exerciseText.match(/for\s*([^,]+)/i);
       
-      // Skip rest days
-      if (dayWorkout.isRestDay) {
+      if (nameMatch) {
+        const exercise = {
+          name: nameMatch[1].trim(),
+          duration: durationMatch ? durationMatch[1].trim() : undefined
+        };
+        
+        cooldownExercises.push(exercise);
+      }
+    }
+  });
+  
+  return cooldownExercises;
+};
+
+// Helper function to extract nutrition advice
+const extractNutritionAdvice = (content) => {
+  const nutritionAdvice = [];
+  
+  // Split the content into lines
+  const lines = content.split('\n');
+  
+  // Process each line as a potential nutrition advice
+  lines.forEach(line => {
+    const trimmedLine = line.trim();
+    if (!trimmedLine) return;
+    
+    // Check if this line contains nutrition advice
+    const adviceMatch = trimmedLine.match(/^[*-]\s+(.*)/);
+    if (adviceMatch) {
+      nutritionAdvice.push(adviceMatch[1].trim());
+    }
+  });
+  
+  // If no advice was found with bullet points, add the entire content
+  if (nutritionAdvice.length === 0 && content.trim()) {
+    nutritionAdvice.push(content.trim());
+  }
+  
+  return nutritionAdvice;
+};
+
+// Helper function to extract recovery tips
+const extractRecoveryTips = (content) => {
+  const recoveryTips = [];
+  
+  // Split the content into lines
+  const lines = content.split('\n');
+  
+  // Process each line as a potential recovery tip
+  lines.forEach(line => {
+    const trimmedLine = line.trim();
+    if (!trimmedLine) return;
+    
+    // Check if this line contains a recovery tip
+    const tipMatch = trimmedLine.match(/^[*-]\s+(.*)/);
+    if (tipMatch) {
+      recoveryTips.push(tipMatch[1].trim());
+    }
+  });
+  
+  // If no tips were found with bullet points, add the entire content
+  if (recoveryTips.length === 0 && content.trim()) {
+    recoveryTips.push(content.trim());
+  }
+  
+  return recoveryTips;
+};
+
+// Helper function to extract exercises from the schedule
+const extractExercisesFromSchedule = (result) => {
+  // Iterate through each day in the week schedule
+  Object.keys(result.weekSchedule).forEach(day => {
+    const daySchedule = result.weekSchedule[day];
+    
+    // Skip rest days
+    if (daySchedule.isRestDay) return;
+    
+    // Find exercises for this day
+    const exercises = findExercisesForDay(daySchedule.description, result.exercises);
+    
+    // Add the exercises to the day's schedule
+    daySchedule.exercises = exercises;
+  });
+};
+
+// Helper function to ensure each day has a focus
+const ensureDayFocus = (result) => {
+  // Define common workout focuses
+  const focuses = [
+    'Upper Body', 'Lower Body', 'Core', 'Cardio', 'Full Body', 
+    'Strength', 'Flexibility', 'HIIT', 'Endurance', 'Rest'
+  ];
+  
+  // Iterate through each day in the week schedule
+  Object.keys(result.weekSchedule).forEach(day => {
+    const daySchedule = result.weekSchedule[day];
+    
+    // If the day doesn't have a focus, try to determine one
+    if (!daySchedule.focus) {
+      // Check if it's a rest day
+      if (daySchedule.isRestDay) {
+        daySchedule.focus = 'Rest';
         return;
       }
       
-      // Find exercises that match the day's focus or workout type
-      const matchingExercises = findExercisesForDay(
-        `${dayWorkout.focus} ${dayWorkout.description} ${dayWorkout.workoutType}`, 
-        result.exercises
-      );
-      
-      // Add the matching exercises to the day's workout
-      if (matchingExercises.length > 0) {
-        dayWorkout.exercises = matchingExercises;
+      // Try to determine the focus from the description
+      for (const focus of focuses) {
+        if (daySchedule.description.toLowerCase().includes(focus.toLowerCase())) {
+          daySchedule.focus = focus;
+          return;
+        }
       }
-    });
-  }
-  
-  return result;
+      
+      // If no focus was found, use a default
+      daySchedule.focus = 'Workout';
+    }
+  });
 };
 
-// Helper function to find exercises for a specific day
-function findExercisesForDay(description, allExercises) {
-  const descriptionLower = description.toLowerCase();
+// Helper function to determine the workout type
+const determineWorkoutType = (content) => {
+  const contentLower = content.toLowerCase();
   
-  // If it's a rest day, return empty array
-  if (descriptionLower.includes('rest day') && !descriptionLower.includes('exercise')) {
-    return [];
+  if (contentLower.includes('rest')) {
+    return 'rest';
+  } else if (contentLower.includes('cardio')) {
+    return 'cardio';
+  } else if (contentLower.includes('hiit')) {
+    return 'hiit';
+  } else if (contentLower.includes('flexibility') || contentLower.includes('stretch')) {
+    return 'flexibility';
+  } else if (contentLower.includes('recovery')) {
+    return 'recovery';
+  } else {
+    return 'strength';
   }
+};
+
+// Helper function to determine the workout focus
+const determineWorkoutFocus = (content) => {
+  const contentLower = content.toLowerCase();
   
-  // Look for specific exercise mentions
-  const matchedExercises = allExercises.filter(exercise => 
-    descriptionLower.includes(exercise.name.toLowerCase())
-  );
-  
-  // If we found specific matches, return those
-  if (matchedExercises.length > 0) {
-    return matchedExercises;
+  if (contentLower.includes('upper body')) {
+    return 'Upper Body';
+  } else if (contentLower.includes('lower body')) {
+    return 'Lower Body';
+  } else if (contentLower.includes('core')) {
+    return 'Core';
+  } else if (contentLower.includes('cardio')) {
+    return 'Cardio';
+  } else if (contentLower.includes('full body')) {
+    return 'Full Body';
+  } else if (contentLower.includes('rest')) {
+    return 'Rest';
+  } else {
+    return 'Workout';
   }
-  
-  // Check for focus areas (upper body, lower body, etc.)
-  const focusMatches = {
-    'upper body': allExercises.filter(e => 
-      ['chest', 'shoulder', 'arm', 'back', 'push-up', 'pull-up', 'bench press', 'row'].some(term => 
-        e.name.toLowerCase().includes(term) || 
-        (e.muscleGroup && e.muscleGroup.toLowerCase().includes(term))
-      )
-    ),
-    'lower body': allExercises.filter(e => 
-      ['leg', 'squat', 'lunge', 'calf', 'deadlift', 'glute', 'hamstring', 'quad'].some(term => 
-        e.name.toLowerCase().includes(term) || 
-        (e.muscleGroup && e.muscleGroup.toLowerCase().includes(term))
-      )
-    ),
-    'core': allExercises.filter(e => 
-      ['core', 'ab', 'plank', 'crunch', 'sit-up', 'twist'].some(term => 
-        e.name.toLowerCase().includes(term) || 
-        (e.muscleGroup && e.muscleGroup.toLowerCase().includes(term))
-      )
-    ),
-    'cardio': allExercises.filter(e => 
-      ['run', 'jog', 'sprint', 'jump', 'burpee', 'cardio', 'jumping jack'].some(term => 
-        e.name.toLowerCase().includes(term) || 
-        (e.muscleGroup && e.muscleGroup.toLowerCase().includes(term))
-      )
-    ),
-    'full body': allExercises.filter(e => 
-      ['full body', 'compound', 'deadlift', 'squat', 'press'].some(term => 
-        e.name.toLowerCase().includes(term) || 
-        (e.muscleGroup && e.muscleGroup.toLowerCase().includes(term))
-      )
-    )
-  };
-  
-  // Check if any focus areas are mentioned in the description
-  for (const [focus, exercises] of Object.entries(focusMatches)) {
-    if (descriptionLower.includes(focus) && exercises.length > 0) {
-      return exercises;
-    }
-  }
-  
-  // Check for specific muscle groups
-  const muscleGroups = [
-    'chest', 'back', 'legs', 'shoulders', 'arms', 'biceps', 
-    'triceps', 'abs', 'core', 'glutes', 'quads', 'hamstrings'
-  ];
-  
-  for (const muscleGroup of muscleGroups) {
-    if (descriptionLower.includes(muscleGroup)) {
-      const muscleExercises = allExercises.filter(e => 
-        e.name.toLowerCase().includes(muscleGroup) || 
-        (e.muscleGroup && e.muscleGroup.toLowerCase().includes(muscleGroup))
-      );
-      
-      if (muscleExercises.length > 0) {
-        return muscleExercises;
-      }
-    }
-  }
-  
-  // If we still don't have matches, return a subset of exercises based on the day
-  return allExercises.slice(0, Math.min(5, allExercises.length));
-}
+};
 
 export {
   getDifficultyLevels,
