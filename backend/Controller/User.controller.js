@@ -1,329 +1,235 @@
-import User from '../models/user.model.js';
-import WorkoutPlan from '../models/fitness.model.js';
-import NutritionPlan from '../models/nutrition.model.js';
+import User from '../model/user.model.js';
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcrypt';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'; // Use environment variable in production
+// Get the directory name
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-/**
- * Register a new user
- */
+// Path to mock database file
+const MOCK_DB_PATH = path.join(__dirname, '../mock-db.json');
+
+// Load mock users from file if it exists
+let mockUsers = [];
+try {
+  if (fs.existsSync(MOCK_DB_PATH)) {
+    const data = fs.readFileSync(MOCK_DB_PATH, 'utf8');
+    mockUsers = JSON.parse(data);
+    console.log('Loaded mock users from file:', mockUsers.length);
+  }
+} catch (error) {
+  console.error('Error loading mock database:', error);
+}
+
+// Save mock users to file
+const saveMockUsers = () => {
+  try {
+    fs.writeFileSync(MOCK_DB_PATH, JSON.stringify(mockUsers, null, 2));
+    console.log('Saved mock users to file');
+  } catch (error) {
+    console.error('Error saving mock database:', error);
+  }
+};
+
+// Debug function to log mock users
+const logMockUsers = () => {
+  console.log('Current mock users:', mockUsers.map(u => ({ _id: u._id, email: u.email, name: u.name })));
+};
+
+// @desc    Register a new user
+// @route   POST /api/auth/register
+// @access  Public
 export const registerUser = async (req, res) => {
   try {
-    const { email, password, firstName, lastName, profileDetails } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({ message: 'Email and password are required' });
-    }
+    console.log('Register request received:', req.body);
+    const { name, email, password } = req.body;
 
     // Check if user already exists
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ message: 'User with this email already exists' });
+    const userExists = mockUsers.find(user => user.email === email);
+    if (userExists) {
+      console.log('User already exists with email:', email);
+      return res.status(400).json({ message: 'User already exists with this email' });
     }
 
-    // Create new user
-    const user = new User({
+    // Hash password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    // Create user object
+    const newUser = {
+      _id: Date.now().toString(),
+      name,
       email,
-      password, // Will be hashed by the pre-save hook
-      firstName,
-      lastName,
-      profileDetails: profileDetails || {},
-      workoutPlans: [],
-      nutritionPlans: [],
-      activePlanIds: {}
-    });
-
-    await user.save();
-
-    // Generate JWT token
-    const token = jwt.sign(
-      { userId: user._id, email: user.email },
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-
-    // Return user data without password
-    const userResponse = {
-      _id: user._id,
-      email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      profileDetails: user.profileDetails
+      password: hashedPassword,
+      createdAt: new Date(),
+      updatedAt: new Date()
     };
 
-    return res.status(201).json({ 
-      message: 'User registered successfully', 
-      user: userResponse,
-      token
+    // Add to mock database
+    mockUsers.push(newUser);
+    console.log('User registered successfully:', { _id: newUser._id, email: newUser.email });
+    logMockUsers();
+    
+    // Save to file
+    saveMockUsers();
+
+    // Generate token
+    const token = jwt.sign(
+      { id: newUser._id },
+      process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: '30d' }
+    );
+
+    // Return user without password
+    const userResponse = { ...newUser };
+    delete userResponse.password;
+
+    res.status(201).json({
+      token,
+      user: {
+        _id: userResponse._id,
+        name: userResponse.name,
+        email: userResponse.email
+      }
     });
   } catch (error) {
-    console.error('Error in registerUser:', error);
-    return res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('Register error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
-/**
- * Login user
- */
+// @desc    Login user
+// @route   POST /api/auth/login
+// @access  Public
 export const loginUser = async (req, res) => {
   try {
+    console.log('Login request received:', req.body);
     const { email, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ message: 'Email and password are required' });
-    }
+    // Log current users for debugging
+    logMockUsers();
 
-    // Find user by email
-    const user = await User.findOne({ email });
+    // Check if user exists
+    const user = mockUsers.find(user => user.email === email);
     if (!user) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+      console.log('User not found with email:', email);
+      return res.status(401).json({ message: 'Invalid email or password' });
     }
 
-    // Verify password
-    const isPasswordValid = await user.comparePassword(password);
-    if (!isPasswordValid) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+    console.log('User found:', { _id: user._id, email: user.email });
+
+    // Check if password is correct
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      console.log('Password does not match for user:', email);
+      return res.status(401).json({ message: 'Invalid email or password' });
     }
 
-    // Generate JWT token
+    console.log('Password matched for user:', email);
+
+    // Generate token
     const token = jwt.sign(
-      { userId: user._id, email: user.email },
-      JWT_SECRET,
-      { expiresIn: '7d' }
+      { id: user._id },
+      process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: '30d' }
     );
 
-    // Return user data without password
-    const userResponse = {
-      _id: user._id,
-      email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      profileDetails: user.profileDetails
-    };
+    console.log('Login successful for user:', email);
 
-    return res.status(200).json({ 
-      message: 'Login successful', 
-      user: userResponse,
-      token
+    res.json({
+      token,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email
+      }
     });
   } catch (error) {
-    console.error('Error in loginUser:', error);
-    return res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('Login error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
-/**
- * Get user profile
- */
+// @desc    Get user profile
+// @route   GET /api/users/me
+// @access  Private
 export const getUserProfile = async (req, res) => {
   try {
-    const userId = req.user.userId; // Set by auth middleware
-
-    const user = await User.findById(userId)
-      .populate('workoutPlans')
-      .populate('nutritionPlans')
-      .populate('activePlanIds.workout')
-      .populate('activePlanIds.nutrition')
-      .select('-password'); // Exclude password
-
+    console.log('Get profile request received for user ID:', req.user.id);
+    
+    // Log current users for debugging
+    logMockUsers();
+    
+    const user = mockUsers.find(user => user._id === req.user.id);
+    
     if (!user) {
+      console.log('User not found with ID:', req.user.id);
       return res.status(404).json({ message: 'User not found' });
     }
 
-    return res.status(200).json({ user });
+    console.log('User profile found:', { _id: user._id, email: user.email });
+
+    // Return user without password
+    const userResponse = { ...user };
+    delete userResponse.password;
+
+    res.json(userResponse);
   } catch (error) {
-    console.error('Error in getUserProfile:', error);
-    return res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('Get profile error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
-/**
- * Update user profile details
- */
+// @desc    Update user profile
+// @route   PUT /api/users/profile
+// @access  Private
 export const updateUserProfile = async (req, res) => {
   try {
-    const userId = req.user.userId; // Set by auth middleware
-    const { firstName, lastName, profileDetails } = req.body;
-
-    const user = await User.findById(userId);
-
-    if (!user) {
+    console.log('Update profile request received for user ID:', req.user.id);
+    
+    const userIndex = mockUsers.findIndex(user => user._id === req.user.id);
+    
+    if (userIndex === -1) {
+      console.log('User not found with ID:', req.user.id);
       return res.status(404).json({ message: 'User not found' });
     }
 
-    if (firstName) user.firstName = firstName;
-    if (lastName) user.lastName = lastName;
-    if (profileDetails) user.profileDetails = { ...user.profileDetails, ...profileDetails };
-    user.updatedAt = Date.now();
+    const user = mockUsers[userIndex];
+    console.log('User found for update:', { _id: user._id, email: user.email });
 
-    await user.save();
+    // Update fields that are sent in the request
+    if (req.body.name) user.name = req.body.name;
+    if (req.body.email) user.email = req.body.email;
+    if (req.body.password) {
+      const salt = await bcrypt.genSalt(10);
+      user.password = await bcrypt.hash(req.body.password, salt);
+    }
+    if (req.body.profilePicture) user.profilePicture = req.body.profilePicture;
+    if (req.body.fitnessGoals) user.fitnessGoals = req.body.fitnessGoals;
+    if (req.body.fitnessLevel) user.fitnessLevel = req.body.fitnessLevel;
+    if (req.body.preferredWorkoutDays) user.preferredWorkoutDays = req.body.preferredWorkoutDays;
+    if (req.body.height) user.height = req.body.height;
+    if (req.body.weight) user.weight = req.body.weight;
+    if (req.body.age) user.age = req.body.age;
+    if (req.body.gender) user.gender = req.body.gender;
+
+    user.updatedAt = new Date();
+    mockUsers[userIndex] = user;
+    console.log('User profile updated successfully');
     
+    // Save to file
+    saveMockUsers();
+
     // Return user without password
-    const userResponse = user.toObject();
+    const userResponse = { ...user };
     delete userResponse.password;
-    
-    return res.status(200).json({ message: 'User profile updated successfully', user: userResponse });
+
+    res.json(userResponse);
   } catch (error) {
-    console.error('Error in updateUserProfile:', error);
-    return res.status(500).json({ message: 'Server error', error: error.message });
-  }
-};
-
-/**
- * Set active workout plan for user
- */
-export const setActiveWorkoutPlan = async (req, res) => {
-  try {
-    const userId = req.user.userId; // Set by auth middleware
-    const { workoutPlanId } = req.body;
-
-    if (!workoutPlanId) {
-      return res.status(400).json({ message: 'Workout plan ID is required' });
-    }
-
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    // Verify the workout plan exists and belongs to the user
-    const workoutPlan = await WorkoutPlan.findById(workoutPlanId);
-    if (!workoutPlan) {
-      return res.status(404).json({ message: 'Workout plan not found' });
-    }
-
-    // Update the active workout plan
-    user.activePlanIds.workout = workoutPlanId;
-    await user.save();
-
-    return res.status(200).json({ 
-      message: 'Active workout plan updated successfully', 
-      activePlanId: workoutPlanId 
-    });
-  } catch (error) {
-    console.error('Error in setActiveWorkoutPlan:', error);
-    return res.status(500).json({ message: 'Server error', error: error.message });
-  }
-};
-
-/**
- * Set active nutrition plan for user
- */
-export const setActiveNutritionPlan = async (req, res) => {
-  try {
-    const userId = req.user.userId; // Set by auth middleware
-    const { nutritionPlanId } = req.body;
-
-    if (!nutritionPlanId) {
-      return res.status(400).json({ message: 'Nutrition plan ID is required' });
-    }
-
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    // Verify the nutrition plan exists and belongs to the user
-    const nutritionPlan = await NutritionPlan.findById(nutritionPlanId);
-    if (!nutritionPlan) {
-      return res.status(404).json({ message: 'Nutrition plan not found' });
-    }
-
-    // Update the active nutrition plan
-    user.activePlanIds.nutrition = nutritionPlanId;
-    await user.save();
-
-    return res.status(200).json({ 
-      message: 'Active nutrition plan updated successfully', 
-      activePlanId: nutritionPlanId 
-    });
-  } catch (error) {
-    console.error('Error in setActiveNutritionPlan:', error);
-    return res.status(500).json({ message: 'Server error', error: error.message });
-  }
-};
-
-/**
- * Add workout plan to user
- */
-export const addWorkoutPlanToUser = async (req, res) => {
-  try {
-    const userId = req.user.userId; // Set by auth middleware
-    const { workoutPlanId } = req.body;
-
-    if (!workoutPlanId) {
-      return res.status(400).json({ message: 'Workout plan ID is required' });
-    }
-
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    // Check if the workout plan exists
-    const workoutPlan = await WorkoutPlan.findById(workoutPlanId);
-    if (!workoutPlan) {
-      return res.status(404).json({ message: 'Workout plan not found' });
-    }
-
-    // Check if the workout plan is already added to the user
-    if (user.workoutPlans.includes(workoutPlanId)) {
-      return res.status(400).json({ message: 'Workout plan already added to user' });
-    }
-
-    // Add the workout plan to the user
-    user.workoutPlans.push(workoutPlanId);
-    await user.save();
-
-    return res.status(200).json({ 
-      message: 'Workout plan added to user successfully', 
-      workoutPlanId 
-    });
-  } catch (error) {
-    console.error('Error in addWorkoutPlanToUser:', error);
-    return res.status(500).json({ message: 'Server error', error: error.message });
-  }
-};
-
-/**
- * Add nutrition plan to user
- */
-export const addNutritionPlanToUser = async (req, res) => {
-  try {
-    const userId = req.user.userId; // Set by auth middleware
-    const { nutritionPlanId } = req.body;
-
-    if (!nutritionPlanId) {
-      return res.status(400).json({ message: 'Nutrition plan ID is required' });
-    }
-
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    // Check if the nutrition plan exists
-    const nutritionPlan = await NutritionPlan.findById(nutritionPlanId);
-    if (!nutritionPlan) {
-      return res.status(404).json({ message: 'Nutrition plan not found' });
-    }
-
-    // Check if the nutrition plan is already added to the user
-    if (user.nutritionPlans.includes(nutritionPlanId)) {
-      return res.status(400).json({ message: 'Nutrition plan already added to user' });
-    }
-
-    // Add the nutrition plan to the user
-    user.nutritionPlans.push(nutritionPlanId);
-    await user.save();
-
-    return res.status(200).json({ 
-      message: 'Nutrition plan added to user successfully', 
-      nutritionPlanId 
-    });
-  } catch (error) {
-    console.error('Error in addNutritionPlanToUser:', error);
-    return res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('Update profile error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
