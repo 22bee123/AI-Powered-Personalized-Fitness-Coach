@@ -1,50 +1,67 @@
 import express from "express";
-import dotenv from "dotenv";
 import cors from "cors";
-import fitnessCoachRoutes from "./routes/fitnessCoach.js";
-import { fileURLToPath } from 'url';
-import { dirname, resolve } from 'path';
+import dotenv from "dotenv";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 
-import connectToMongoDB from "./db/fitnessDataBase.js";
-
-// Configure dotenv to load environment variables
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-// Load environment variables from .env file
+// Load environment variables
 dotenv.config();
 
-// Also load from parent directory .env if it exists
-dotenv.config({ path: resolve(__dirname, '../.env') });
-
-// Also load from .env.local if it exists
-dotenv.config({ path: resolve(__dirname, './.env.local') });
-
-
-
-// Convert user routes to ES modules
-import userRoutes from "./routes/user.js";
-import aiCoachRoutes from "./routes/aiCoach.js";
+import userdatabase from "./db/user.db.js";
+import authRoutes from "./routes/auth.routes.js";
+import userRoutes from "./routes/user.routes.js";
 
 const app = express();
 
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// Routes
-app.use("/api/fitness-coach", fitnessCoachRoutes);
-app.use("/api/users", userRoutes);
-app.use("/api/ai-coach", aiCoachRoutes);
+// Get directory name for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-// Basic health check route
-app.get("/api/health", (req, res) => {
-  res.json({ status: "ok", message: "AI Fitness Coach API is running" });
+// Debug route to check mock users
+app.get('/api/debug/users', (req, res) => {
+  try {
+    const MOCK_DB_PATH = path.join(__dirname, './mock-db.json');
+    
+    if (fs.existsSync(MOCK_DB_PATH)) {
+      const data = fs.readFileSync(MOCK_DB_PATH, 'utf8');
+      const users = JSON.parse(data);
+      // Return users without passwords
+      const safeUsers = users.map(u => ({
+        _id: u._id,
+        name: u.name,
+        email: u.email,
+        createdAt: u.createdAt
+      }));
+      res.json({ count: users.length, users: safeUsers });
+    } else {
+      res.json({ count: 0, users: [], message: 'No mock database file found' });
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
-// Start server
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+
+// Default route
+app.get('/', (req, res) => {
+  res.send('API is running...');
+});
+
 const PORT = process.env.PORT || 3000;
+
+// Connect to database
+userdatabase();
+
+// Start server
 app.listen(PORT, () => {
-  connectToMongoDB();
   console.log(`Server is running on port ${PORT}`);
 });
