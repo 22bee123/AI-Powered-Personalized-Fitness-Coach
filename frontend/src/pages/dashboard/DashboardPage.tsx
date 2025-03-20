@@ -11,6 +11,7 @@ import {
   ClipboardDocumentListIcon
 } from '@heroicons/react/24/outline';
 import Logo from '../../components/Logo';
+import WorkOut from '../../components/workoutPlans/WorkOut';
 
 const DashboardPage = () => {
   const { user, logout } = useAuth();
@@ -22,17 +23,6 @@ const DashboardPage = () => {
     { name: 'Calories Burned', value: '8,540', icon: BoltIcon },
     { name: 'Active Days', value: '18', icon: CalendarIcon },
     { name: 'Fitness Score', value: '82', icon: ChartBarIcon },
-  ];
-
-  // Mock workout plan
-  const workoutPlan = [
-    { day: 'Monday', focus: 'Upper Body', duration: '45 min', exercises: ['Push-ups', 'Pull-ups', 'Shoulder Press', 'Bicep Curls'] },
-    { day: 'Tuesday', focus: 'Lower Body', duration: '50 min', exercises: ['Squats', 'Lunges', 'Deadlifts', 'Calf Raises'] },
-    { day: 'Wednesday', focus: 'Rest Day', duration: '0 min', exercises: ['Light Stretching', 'Foam Rolling'] },
-    { day: 'Thursday', focus: 'Core & Cardio', duration: '40 min', exercises: ['Planks', 'Russian Twists', 'Mountain Climbers', 'HIIT'] },
-    { day: 'Friday', focus: 'Full Body', duration: '60 min', exercises: ['Burpees', 'Kettlebell Swings', 'Box Jumps', 'Thrusters'] },
-    { day: 'Saturday', focus: 'Active Recovery', duration: '30 min', exercises: ['Swimming', 'Yoga', 'Light Jogging'] },
-    { day: 'Sunday', focus: 'Rest Day', duration: '0 min', exercises: ['Meditation', 'Stretching'] },
   ];
 
   // Mock nutrition schedule
@@ -272,55 +262,7 @@ const DashboardPage = () => {
           )}
 
           {activeTab === 'workout-plan' && (
-            <div className="bg-white shadow-sm rounded-lg p-6">
-              <div className="flex justify-between items-center mb-6">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Weekly Workout Plan</h2>
-                  <p className="text-gray-600 mt-1">Your personalized training schedule</p>
-                </div>
-                <button className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                  Generate New Plan
-                </button>
-              </div>
-              
-              <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
-                <table className="min-w-full divide-y divide-gray-300">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">Day</th>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Focus</th>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Duration</th>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Exercises</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 bg-white">
-                    {workoutPlan.map((day) => (
-                      <tr key={day.day} className={day.focus.includes('Rest') ? 'bg-gray-50' : ''}>
-                        <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">{day.day}</td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{day.focus}</td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{day.duration}</td>
-                        <td className="px-3 py-4 text-sm text-gray-500">
-                          <ul className="list-disc pl-5">
-                            {day.exercises.map((exercise, idx) => (
-                              <li key={idx}>{exercise}</li>
-                            ))}
-                          </ul>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              
-              <div className="mt-6 flex justify-end space-x-4">
-                <button className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
-                  Download PDF
-                </button>
-                <button className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
-                  Share
-                </button>
-              </div>
-            </div>
+            <WorkOut />
           )}
 
           {activeTab === 'nutrition' && (
