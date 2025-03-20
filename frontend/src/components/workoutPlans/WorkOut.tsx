@@ -6,6 +6,7 @@ import {
   CheckCircleIcon,
   ExclamationCircleIcon
 } from '@heroicons/react/24/outline';
+import WorkoutForm from './WorkoutForm';
 
 // Types for workout plan
 interface Exercise {
@@ -49,6 +50,7 @@ const WorkOut: React.FC = () => {
   const [generating, setGenerating] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [showForm, setShowForm] = useState<boolean>(false);
 
   // Fetch the latest workout plan on component mount
   useEffect(() => {
@@ -95,6 +97,18 @@ const WorkOut: React.FC = () => {
     } finally {
       setGenerating(false);
     }
+  };
+
+  // Handle workout plan generation from form
+  const handleWorkoutGenerated = (workoutPlan: WorkoutPlan) => {
+    setWorkoutPlan(workoutPlan);
+    setShowForm(false);
+    setSuccess('Workout plan generated successfully!');
+    
+    // Clear success message after 3 seconds
+    setTimeout(() => {
+      setSuccess(null);
+    }, 3000);
   };
 
   // Format day name to capitalize first letter
@@ -192,26 +206,57 @@ const WorkOut: React.FC = () => {
         </div>
       </div>
 
-      {/* Difficulty selector */}
-      {renderDifficultySelector()}
-
-      {/* Generate button */}
-      <div className="mb-6">
+      {/* Toggle between quick generation and detailed form */}
+      <div className="mb-6 flex space-x-4">
         <button
-          onClick={generateWorkoutPlan}
-          disabled={generating}
-          className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+          onClick={() => setShowForm(false)}
+          className={`px-4 py-2 rounded-md text-sm font-medium ${
+            !showForm
+              ? 'bg-indigo-600 text-white'
+              : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+          }`}
         >
-          {generating ? (
-            <>
-              <ArrowPathIcon className="h-5 w-5 mr-2 animate-spin" />
-              Generating...
-            </>
-          ) : (
-            'Generate New Plan'
-          )}
+          Quick Generate
+        </button>
+        <button
+          onClick={() => setShowForm(true)}
+          className={`px-4 py-2 rounded-md text-sm font-medium ${
+            showForm
+              ? 'bg-indigo-600 text-white'
+              : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+          }`}
+        >
+          Personalized Form
         </button>
       </div>
+
+      {/* Show either quick generation or detailed form */}
+      {showForm ? (
+        <WorkoutForm onWorkoutGenerated={handleWorkoutGenerated} setLoading={setLoading} />
+      ) : (
+        <>
+          {/* Difficulty selector */}
+          {renderDifficultySelector()}
+
+          {/* Generate button */}
+          <div className="mb-6">
+            <button
+              onClick={generateWorkoutPlan}
+              disabled={generating}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+            >
+              {generating ? (
+                <>
+                  <ArrowPathIcon className="h-5 w-5 mr-2 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                'Generate New Plan'
+              )}
+            </button>
+          </div>
+        </>
+      )}
 
       {/* Success message */}
       {success && (
@@ -240,10 +285,11 @@ const WorkOut: React.FC = () => {
       {!loading && workoutPlan && renderWorkoutPlan()}
 
       {/* No workout plan message */}
-      {!loading && !workoutPlan && !generating && (
+      {!loading && !workoutPlan && !generating && !showForm && (
         <div className="text-center py-10">
           <p className="text-gray-500 mb-4">You don't have a workout plan yet.</p>
           <p className="text-gray-500">Select a difficulty level and click "Generate New Plan" to create one.</p>
+          <p className="text-gray-500 mt-2">Or click "Personalized Form" for a more tailored workout plan.</p>
         </div>
       )}
 
