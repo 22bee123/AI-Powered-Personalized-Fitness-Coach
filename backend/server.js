@@ -11,6 +11,7 @@ dotenv.config();
 import userdatabase from "./db/user.db.js";
 import authRoutes from "./routes/auth.routes.js";
 import userRoutes from "./routes/user.routes.js";
+import workoutRoutes from "./routes/workout.route.js";
 
 const app = express();
 
@@ -50,6 +51,7 @@ app.get('/api/debug/users', (req, res) => {
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/workouts', workoutRoutes);
 
 // Default route
 app.get('/', (req, res) => {
@@ -58,10 +60,8 @@ app.get('/', (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 
-// Connect to database
-userdatabase();
-
 // Start server
 app.listen(PORT, () => {
+  userdatabase();
   console.log(`Server is running on port ${PORT}`);
 });

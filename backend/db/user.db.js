@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import dotenv from "dotenv";
+
 dotenv.config();
 
 const userdatabase = async () => {
@@ -9,8 +10,7 @@ const userdatabase = async () => {
             console.log('Using mock database connection for testing');
             return;
         }
-        
-        await mongoose.connect(process.env.MONGODB_URI);
+        await mongoose.connect("mongodb+srv://paulkianfacebook:Paulkian18@cluster0.nud2c.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0");
         console.log('Connected to MongoDB');   
     } catch (error) {
         console.log('MongoDB connection error:', error.message);
