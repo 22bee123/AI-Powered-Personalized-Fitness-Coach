@@ -13,6 +13,7 @@ import authRoutes from "./routes/auth.routes.js";
 import userRoutes from "./routes/user.routes.js";
 import workoutRoutes from "./routes/workout.route.js";
 import coachAIRoutes from "./routes/CoachAI.route.js";
+import nutritionRoutes from "./routes/nutrition.route.js";
 
 const app = express();
 
@@ -54,6 +55,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/workouts', workoutRoutes);
 app.use('/api/coach', coachAIRoutes);
+app.use('/api/nutrition', nutritionRoutes);
 
 // Default route
 app.get('/', (req, res) => {
