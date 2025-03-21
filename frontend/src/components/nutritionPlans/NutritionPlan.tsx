@@ -6,6 +6,7 @@ import {
   CheckCircleIcon, 
   ExclamationCircleIcon 
 } from '@heroicons/react/24/outline';
+import { generatePlans, UserFormData } from '../../utils/planGenerator';
 
 interface NutritionItem {
   meal: string;
@@ -35,12 +36,13 @@ interface NutritionPlanProps {
 }
 
 const NutritionPlan: React.FC<NutritionPlanProps> = ({ onFormToggle }) => {
-  const { user } = useAuth();
+  // We're keeping useAuth for future use, but not using user directly
+  const { /* user */ } = useAuth();
   const [nutritionPlan, setNutritionPlan] = useState<NutritionPlanData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<UserFormData>({
     age: '',
     gender: '',
     height: '',
@@ -116,25 +118,11 @@ const NutritionPlan: React.FC<NutritionPlanProps> = ({ onFormToggle }) => {
     setSuccess(null);
     
     try {
-      const response = await api.post('/nutrition/generate', { 
-        userData: {
-          age: formData.age,
-          gender: formData.gender,
-          height: formData.height,
-          weight: formData.weight,
-          fitnessLevel: formData.fitnessLevel,
-          fitnessGoals: formData.fitnessGoals,
-          healthConditions: formData.healthConditions,
-          preferredWorkoutDuration: formData.preferredWorkoutDuration,
-          workoutDaysPerWeek: formData.workoutDaysPerWeek,
-          equipmentAccess: formData.equipmentAccess,
-          focusAreas: formData.focusAreas,
-          difficulty: formData.difficulty
-        }
-      });
+      // Generate both workout and nutrition plans
+      const { nutritionPlan } = await generatePlans(formData);
       
-      setNutritionPlan(response.data.nutritionPlan);
-      setSuccess('Nutrition plan generated successfully!');
+      setNutritionPlan(nutritionPlan);
+      setSuccess('Workout and nutrition plans generated successfully!');
       setShowForm(false);
       
       // Clear success message after 3 seconds
@@ -142,8 +130,8 @@ const NutritionPlan: React.FC<NutritionPlanProps> = ({ onFormToggle }) => {
         setSuccess(null);
       }, 3000);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to generate nutrition plan. Please try again.');
-      console.error('Error generating nutrition plan:', err);
+      setError(err.response?.data?.message || 'Failed to generate plans. Please try again.');
+      console.error('Error generating plans:', err);
     } finally {
       setGenerating(false);
     }
