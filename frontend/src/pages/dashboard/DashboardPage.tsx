@@ -12,6 +12,7 @@ import {
 } from '@heroicons/react/24/outline';
 import Logo from '../../components/Logo';
 import WorkOut from '../../components/workoutPlans/WorkOut';
+import CoachAI from '../../components/coachAI/CoachAI';
 
 const DashboardPage = () => {
   const { user, logout } = useAuth();
@@ -212,53 +213,7 @@ const DashboardPage = () => {
           )}
 
           {activeTab === 'ai-coach' && (
-            <div className="bg-white shadow-sm rounded-lg p-6">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">AI Fitness Coach</h2>
-              <p className="text-gray-600 mb-6">
-                Ask your AI coach for personalized workout plans, nutrition advice, and fitness tips.
-              </p>
-              
-              <div className="border rounded-lg p-4 h-96 bg-gray-50 mb-4 overflow-y-auto">
-                <div className="space-y-4">
-                  <div className="flex items-start">
-                    <div className="flex-shrink-0">
-                      <span className="h-10 w-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold">
-                        AI
-                      </span>
-                    </div>
-                    <div className="ml-3 bg-indigo-100 rounded-lg py-2 px-4 max-w-md">
-                      <p className="text-sm text-gray-900">
-                        Hello! I'm your AI Fitness Coach. How can I help you today?
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="flex">
-                <input
-                  type="text"
-                  placeholder="Ask your AI coach a question..."
-                  className="flex-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full rounded-md sm:text-sm border-gray-300"
-                />
-                <button
-                  className="ml-3 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                >
-                  Send
-                </button>
-              </div>
-              
-              <div className="mt-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Example questions you can ask:</h3>
-                <ul className="list-disc pl-5 space-y-1 text-sm text-gray-600">
-                  <li>Can you suggest a workout routine for building upper body strength?</li>
-                  <li>What should I eat before and after a workout?</li>
-                  <li>How can I improve my running endurance?</li>
-                  <li>Can you create a meal plan for weight loss?</li>
-                  <li>What exercises are good for lower back pain?</li>
-                </ul>
-              </div>
-            </div>
+            <CoachAI />
           )}
 
           {activeTab === 'workout-plan' && (

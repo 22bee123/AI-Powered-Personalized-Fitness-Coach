@@ -12,6 +12,7 @@ import userdatabase from "./db/user.db.js";
 import authRoutes from "./routes/auth.routes.js";
 import userRoutes from "./routes/user.routes.js";
 import workoutRoutes from "./routes/workout.route.js";
+import coachAIRoutes from "./routes/CoachAI.route.js";
 
 const app = express();
 
@@ -52,6 +53,7 @@ app.get('/api/debug/users', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/workouts', workoutRoutes);
+app.use('/api/coach', coachAIRoutes);
 
 // Default route
 app.get('/', (req, res) => {
