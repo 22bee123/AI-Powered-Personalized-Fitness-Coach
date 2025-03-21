@@ -7,6 +7,7 @@ import {
   ExclamationCircleIcon
 } from '@heroicons/react/24/outline';
 import WorkoutForm from './WorkoutForm';
+import { generatePlans } from '../../utils/planGenerator';
 
 // Types for workout plan
 interface Exercise {
@@ -83,17 +84,32 @@ const WorkOut: React.FC = () => {
     setError(null);
     setSuccess(null);
     try {
-      const response = await api.post('/workouts/generate', { difficulty });
-      setWorkoutPlan(response.data.workoutPlan);
-      setSuccess('Workout plan generated successfully!');
+      // Generate both workout and nutrition plans with minimal data
+      const { workoutPlan } = await generatePlans({
+        difficulty,
+        age: '',
+        gender: '',
+        height: '',
+        weight: '',
+        fitnessLevel: 'beginner',
+        fitnessGoals: [],
+        healthConditions: [],
+        preferredWorkoutDuration: '30-45',
+        workoutDaysPerWeek: '3-4',
+        equipmentAccess: 'limited',
+        focusAreas: []
+      });
+      
+      setWorkoutPlan(workoutPlan);
+      setSuccess('Workout and nutrition plans generated successfully!');
       
       // Clear success message after 3 seconds
       setTimeout(() => {
         setSuccess(null);
       }, 3000);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to generate workout plan. Please try again.');
-      console.error('Error generating workout plan:', err);
+      setError(err.response?.data?.message || 'Failed to generate plans. Please try again.');
+      console.error('Error generating plans:', err);
     } finally {
       setGenerating(false);
     }
@@ -103,7 +119,7 @@ const WorkOut: React.FC = () => {
   const handleWorkoutGenerated = (workoutPlan: WorkoutPlan) => {
     setWorkoutPlan(workoutPlan);
     setShowForm(false);
-    setSuccess('Workout plan generated successfully!');
+    setSuccess('Workout and nutrition plans generated successfully!');
     
     // Clear success message after 3 seconds
     setTimeout(() => {

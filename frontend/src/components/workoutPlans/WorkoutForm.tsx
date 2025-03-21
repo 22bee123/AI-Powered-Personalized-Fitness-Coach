@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import api from '../../utils/api';
 import { 
   ArrowPathIcon, 
   CheckCircleIcon, 
   ExclamationCircleIcon 
 } from '@heroicons/react/24/outline';
+import { generatePlans, UserFormData } from '../../utils/planGenerator';
 
 interface WorkoutFormProps {
   onWorkoutGenerated: (workoutPlan: any) => void;
@@ -15,7 +15,7 @@ interface WorkoutFormProps {
 const WorkoutForm: React.FC<WorkoutFormProps> = ({ onWorkoutGenerated, setLoading }) => {
   // We're not using isAuthenticated directly, but we'll keep the auth context for future use
   const { /* isAuthenticated */ } = useAuth();
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<UserFormData>({
     difficulty: 'medium',
     age: '',
     gender: '',
@@ -68,37 +68,19 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ onWorkoutGenerated, setLoadin
     setLoading(true);
     
     try {
-      // For now, we'll just use the difficulty since that's what the backend expects
-      // In the future, the backend could be updated to use all the form data
-      const response = await api.post('/workouts/generate', { 
-        difficulty: formData.difficulty,
-        // The backend currently only uses difficulty, but we're sending all data
-        // for future enhancements
-        userData: {
-          age: formData.age,
-          gender: formData.gender,
-          height: formData.height,
-          weight: formData.weight,
-          fitnessLevel: formData.fitnessLevel,
-          fitnessGoals: formData.fitnessGoals,
-          healthConditions: formData.healthConditions,
-          preferredWorkoutDuration: formData.preferredWorkoutDuration,
-          workoutDaysPerWeek: formData.workoutDaysPerWeek,
-          equipmentAccess: formData.equipmentAccess,
-          focusAreas: formData.focusAreas
-        }
-      });
+      // Generate both workout and nutrition plans
+      const { workoutPlan } = await generatePlans(formData);
       
-      onWorkoutGenerated(response.data.workoutPlan);
-      setSuccess('Workout plan generated successfully!');
+      onWorkoutGenerated(workoutPlan);
+      setSuccess('Workout and nutrition plans generated successfully!');
       
       // Clear success message after 3 seconds
       setTimeout(() => {
         setSuccess(null);
       }, 3000);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to generate workout plan. Please try again.');
-      console.error('Error generating workout plan:', err);
+      setError(err.response?.data?.message || 'Failed to generate plans. Please try again.');
+      console.error('Error generating plans:', err);
     } finally {
       setGenerating(false);
       setLoading(false);
@@ -380,7 +362,7 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ onWorkoutGenerated, setLoadin
                 Generating...
               </>
             ) : (
-              'Generate Workout Plan'
+              'Generate Plans'
             )}
           </button>
         </div>
