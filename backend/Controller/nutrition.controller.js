@@ -4,8 +4,61 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 // Initialize the Gemini API
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
+// Calculate base calorie needs using Harris-Benedict equation
+const calculateBaseCalories = (userData) => {
+  // Default values if not provided
+  const age = userData.age ? parseInt(userData.age) : 30;
+  const gender = userData.gender?.toLowerCase() || 'male';
+  const height = userData.height ? parseInt(userData.height) : 170; // cm
+  const weight = userData.weight ? parseInt(userData.weight) : 70; // kg
+  
+  // Activity level multiplier based on workout frequency
+  let activityMultiplier = 1.2; // Sedentary (little or no exercise)
+  
+  const workoutDays = userData.workoutDaysPerWeek || '3-4';
+  if (workoutDays === '1-2') {
+    activityMultiplier = 1.375; // Lightly active (light exercise/sports 1-3 days/week)
+  } else if (workoutDays === '3-4') {
+    activityMultiplier = 1.55; // Moderately active (moderate exercise/sports 3-5 days/week)
+  } else if (workoutDays === '5-6') {
+    activityMultiplier = 1.725; // Very active (hard exercise/sports 6-7 days a week)
+  } else if (workoutDays === '7') {
+    activityMultiplier = 1.9; // Extra active (very hard exercise & physical job or 2x training)
+  }
+  
+  // Calculate BMR (Basal Metabolic Rate)
+  let bmr;
+  if (gender === 'female') {
+    bmr = 655.1 + (9.563 * weight) + (1.85 * height) - (4.676 * age);
+  } else {
+    bmr = 66.47 + (13.75 * weight) + (5.003 * height) - (6.755 * age);
+  }
+  
+  // Calculate TDEE (Total Daily Energy Expenditure)
+  const tdee = Math.round(bmr * activityMultiplier);
+  
+  // Adjust based on fitness goals
+  let goalAdjustedCalories = tdee;
+  const fitnessGoals = userData.fitnessGoals || [];
+  
+  if (fitnessGoals.includes('weight loss')) {
+    goalAdjustedCalories = Math.round(tdee * 0.85); // 15% deficit for weight loss
+  } else if (fitnessGoals.includes('muscle gain')) {
+    goalAdjustedCalories = Math.round(tdee * 1.1); // 10% surplus for muscle gain
+  }
+  
+  return {
+    bmr: Math.round(bmr),
+    tdee,
+    goalAdjustedCalories
+  };
+};
+
 // Helper function to generate system prompt based on user data
 const generateSystemPrompt = (userData) => {
+  // Calculate calorie needs
+  const calorieData = calculateBaseCalories(userData);
+  
   return `You are an expert nutrition coach. Create a personalized daily nutrition plan based on the following user information:
   
   User Profile:
@@ -22,6 +75,11 @@ const generateSystemPrompt = (userData) => {
   - Focus Areas: ${userData.focusAreas?.join(', ') || 'Not specified'}
   - Workout Difficulty: ${userData.difficulty || 'medium'}
   
+  Calculated Calorie Needs:
+  - Basal Metabolic Rate (BMR): ${calorieData.bmr} calories/day
+  - Total Daily Energy Expenditure (TDEE): ${calorieData.tdee} calories/day
+  - Recommended Daily Calories (adjusted for goals): ${calorieData.goalAdjustedCalories} calories/day
+  
   Create a daily nutrition plan that includes:
   1. 6 meals (breakfast, morning snack, lunch, afternoon snack, dinner, evening snack)
   2. For each meal, include:
@@ -29,7 +87,7 @@ const generateSystemPrompt = (userData) => {
      - Recommended time
      - List of foods
      - Approximate calories
-  3. Total daily calories
+  3. Total daily calories (should be close to the recommended ${calorieData.goalAdjustedCalories} calories)
   4. Macronutrient breakdown (protein, carbs, fats in grams)
   5. 5 nutrition tips specific to the user's goals and profile
   
@@ -61,6 +119,9 @@ export const generateNutritionPlan = async (req, res) => {
   try {
     const userData = req.body.userData || {};
     const userId = req.user.id;
+
+    // Calculate calorie needs
+    const calorieData = calculateBaseCalories(userData);
 
     // Generate nutrition plan using Gemini
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
@@ -95,14 +156,21 @@ export const generateNutritionPlan = async (req, res) => {
       dailyPlan: nutritionData.dailyPlan,
       totalCalories: nutritionData.totalCalories,
       macros: nutritionData.macros,
-      nutritionTips: nutritionData.nutritionTips
+      nutritionTips: nutritionData.nutritionTips,
+      calorieCalculations: {
+        bmr: calorieData.bmr,
+        tdee: calorieData.tdee,
+        goalAdjustedCalories: calorieData.goalAdjustedCalories
+      }
     });
 
     await nutritionPlan.save();
 
+    // Include calorie calculation data in the response
     res.status(201).json({
       message: 'Nutrition plan generated successfully',
-      nutritionPlan
+      nutritionPlan,
+      calorieData
     });
   } catch (error) {
     console.error('Error generating nutrition plan:', error);

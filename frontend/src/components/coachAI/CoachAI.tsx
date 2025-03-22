@@ -1,8 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import api from '../../utils/api';
 import ReactMarkdown from 'react-markdown';
-import { ArrowUpIcon, XMarkIcon, TrashIcon, PaperAirplaneIcon } from '@heroicons/react/24/solid';
-import { ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline';
+import { 
+  PaperAirplaneIcon, 
+  TrashIcon, 
+  XMarkIcon,
+  ArrowPathIcon 
+} from '@heroicons/react/24/solid';
+import { 
+  FireIcon, 
+  HeartIcon,
+  BoltIcon,
+  SparklesIcon
+} from '@heroicons/react/24/outline';
 
 interface Message {
   id: string;
@@ -16,7 +26,7 @@ const CoachAI: React.FC = () => {
     {
       id: '0',
       sender: 'ai',
-      text: "Hello! I'm your AI Fitness Coach. How can I help you today?",
+      text: "Hey there! 💪 I'm your AI Fitness Coach. How can I help with your fitness journey today?",
       timestamp: new Date()
     }
   ]);
@@ -145,55 +155,67 @@ const CoachAI: React.FC = () => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
+  const quickQuestions = [
+    { text: "Daily workout plan", icon: <BoltIcon className="h-4 w-4 mr-1" /> },
+    { text: "Nutrition advice", icon: <HeartIcon className="h-4 w-4 mr-1" /> },
+    { text: "Cardio tips", icon: <FireIcon className="h-4 w-4 mr-1" /> },
+    { text: "Recovery help", icon: <SparklesIcon className="h-4 w-4 mr-1" /> }
+  ];
+
   if (showWelcome) {
     return (
-      <div className="bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg rounded-xl p-8 flex flex-col items-center justify-center h-full text-white">
-        <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mb-6 shadow-lg">
-          <ChatBubbleLeftRightIcon className="h-12 w-12 text-indigo-600" />
+      <div className="bg-gradient-to-br from-emerald-500 to-blue-600 shadow-xl rounded-2xl p-8 flex flex-col items-center justify-center h-full text-white">
+        <div className="w-24 h-24 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center mb-8 shadow-lg border border-white/30">
+          <FireIcon className="h-14 w-14 text-white" />
         </div>
-        <h2 className="text-3xl font-bold mb-4">AI Fitness Coach</h2>
-        <p className="text-indigo-100 mb-8 text-center max-w-md">
-          Your personal AI fitness assistant is ready to help you with workout plans, nutrition advice, and fitness tips.
+        <h2 className="text-4xl font-bold mb-4 tracking-tight">FitCoach AI</h2>
+        <p className="text-emerald-50 mb-8 text-center max-w-md text-lg">
+          Your 24/7 fitness companion ready to transform your workout journey with personalized advice.
         </p>
         <button
           onClick={() => setShowWelcome(false)}
-          className="px-8 py-4 bg-white text-indigo-600 font-medium rounded-full shadow-lg hover:bg-indigo-50 transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-indigo-600"
+          className="px-8 py-4 bg-white text-emerald-600 font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-emerald-600 text-lg"
         >
-          Start Chatting
+          Start Your Fitness Journey
         </button>
       </div>
     );
   }
 
   return (
-    <div className="bg-white shadow-lg rounded-xl flex flex-col h-full overflow-hidden">
+    <div className="bg-gray-50 shadow-xl rounded-2xl flex flex-col h-full overflow-hidden border border-gray-100">
       {/* Chat header */}
-      <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 px-6 py-4 flex justify-between items-center">
+      <div className="bg-gradient-to-r from-emerald-500 to-blue-600 px-6 py-4 flex justify-between items-center">
         <div className="flex items-center">
-          <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center text-indigo-600 font-bold mr-3 shadow-md">
-            AI
+          <div className="h-11 w-11 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white font-bold mr-3 shadow-md border border-white/30">
+            <FireIcon className="h-6 w-6" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-white">AI Fitness Coach</h2>
-            <p className="text-xs text-indigo-200">
-              {isLoading ? 'Typing...' : 'Online'}
-            </p>
+            <h2 className="text-xl font-bold text-white">FitCoach AI</h2>
+            <div className="flex items-center">
+              <span className="h-2 w-2 bg-green-300 rounded-full mr-2 animate-pulse"></span>
+              <p className="text-xs text-emerald-50">
+                {isLoading ? 'Analyzing your fitness needs...' : 'Ready to coach'}
+              </p>
+            </div>
           </div>
         </div>
-        <button
-          onClick={handleClearChat}
-          className="text-indigo-200 hover:text-white transition-colors p-2 rounded-full hover:bg-indigo-500"
-          title="Clear conversation"
-        >
-          <TrashIcon className="h-5 w-5" />
-        </button>
+        <div className="flex space-x-2">
+          <button
+            onClick={handleClearChat}
+            className="text-white/70 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10"
+            title="Clear conversation"
+          >
+            <TrashIcon className="h-5 w-5" />
+          </button>
+        </div>
       </div>
       
       {/* Chat messages */}
       <div 
         ref={chatContainerRef}
-        className="flex-grow p-4 overflow-y-auto bg-gradient-to-b from-gray-50 to-gray-100"
-        style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width="20" height="20" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="%239C92AC" fill-opacity="0.05" fill-rule="evenodd"%3E%3Ccircle cx="3" cy="3" r="3"/%3E%3Ccircle cx="13" cy="13" r="3"/%3E%3C/g%3E%3C/svg%3E")' }}
+        className="flex-grow p-4 overflow-y-auto bg-gray-50"
+        style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"%3E%3Cpath d="M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z" fill="%239EE6B4" fill-opacity="0.05" fill-rule="evenodd"/%3E%3C/svg%3E")' }}
       >
         <div className="space-y-4 px-2">
           {messages.map((message, index) => {
@@ -204,45 +226,45 @@ const CoachAI: React.FC = () => {
               <div key={message.id}>
                 {showTimestamp && (
                   <div className="flex justify-center my-4">
-                    <span className="text-xs bg-gray-200 text-gray-500 px-2 py-1 rounded-full">
+                    <span className="text-xs bg-gray-200/70 backdrop-blur-sm text-gray-500 px-3 py-1 rounded-full">
                       {message.timestamp.toLocaleDateString()} {formatTime(message.timestamp)}
                     </span>
                   </div>
                 )}
                 
                 <div 
-                  className={`flex items-start ${message.sender === 'user' ? 'justify-end' : 'justify-start'} group`}
+                  className={`flex items-start ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   {message.sender === 'ai' && (
                     <div className="flex-shrink-0 mr-3">
-                      <div className="h-9 w-9 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold shadow-sm">
-                        AI
+                      <div className="h-10 w-10 rounded-full bg-gradient-to-br from-emerald-500 to-blue-600 flex items-center justify-center text-white shadow-md">
+                        <FireIcon className="h-5 w-5" />
                       </div>
                     </div>
                   )}
                   
                   <div 
-                    className={`py-2 px-4 rounded-2xl max-w-[85%] shadow-sm ${
+                    className={`py-3 px-5 rounded-2xl max-w-[85%] shadow-sm ${
                       message.sender === 'user' 
-                        ? 'bg-indigo-600 text-white rounded-tr-none' 
-                        : 'bg-white text-gray-800 rounded-tl-none border border-gray-200'
+                        ? 'bg-gradient-to-r from-blue-600 to-emerald-500 text-white rounded-tr-none' 
+                        : 'bg-white text-gray-800 rounded-tl-none border border-gray-100'
                     }`}
                   >
                     {message.sender === 'ai' ? (
-                      <div className="prose prose-sm max-w-none">
+                      <div className="prose prose-sm max-w-none prose-headings:text-emerald-600 prose-a:text-blue-600 prose-strong:text-emerald-700">
                         <ReactMarkdown>{message.text}</ReactMarkdown>
                       </div>
                     ) : (
                       <p className="text-sm">{message.text}</p>
                     )}
-                    <span className={`text-xs block text-right mt-1 ${message.sender === 'user' ? 'text-indigo-200' : 'text-gray-400'}`}>
+                    <span className={`text-xs block text-right mt-1 ${message.sender === 'user' ? 'text-white/70' : 'text-gray-400'}`}>
                       {formatTime(message.timestamp)}
                     </span>
                   </div>
                   
                   {message.sender === 'user' && (
                     <div className="flex-shrink-0 ml-3">
-                      <div className="h-9 w-9 rounded-full bg-gray-300 flex items-center justify-center text-gray-700 font-bold shadow-sm">
+                      <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-700 font-bold shadow-sm">
                         You
                       </div>
                     </div>
@@ -255,26 +277,32 @@ const CoachAI: React.FC = () => {
           {isLoading && (
             <div className="flex items-start">
               <div className="flex-shrink-0 mr-3">
-                <div className="h-9 w-9 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold">
-                  AI
+                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-emerald-500 to-blue-600 flex items-center justify-center text-white shadow-md">
+                  <FireIcon className="h-5 w-5" />
                 </div>
               </div>
-              <div className="bg-white rounded-2xl rounded-tl-none py-3 px-4 shadow-sm border border-gray-200">
+              <div className="bg-white rounded-2xl rounded-tl-none py-4 px-5 shadow-sm border border-gray-100">
                 <div className="flex space-x-2">
-                  <div className="h-2 w-2 bg-indigo-400 rounded-full animate-bounce"></div>
-                  <div className="h-2 w-2 bg-indigo-400 rounded-full animate-bounce delay-100"></div>
-                  <div className="h-2 w-2 bg-indigo-400 rounded-full animate-bounce delay-200"></div>
+                  <div className="h-2 w-2 bg-emerald-400 rounded-full animate-bounce"></div>
+                  <div className="h-2 w-2 bg-emerald-400 rounded-full animate-bounce delay-100"></div>
+                  <div className="h-2 w-2 bg-emerald-400 rounded-full animate-bounce delay-200"></div>
                 </div>
               </div>
             </div>
           )}
           
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg shadow-sm mx-auto max-w-md" role="alert">
+            <div className="bg-red-50 border border-red-100 text-red-600 px-4 py-3 rounded-xl shadow-sm mx-auto max-w-md" role="alert">
               <div className="flex">
                 <XMarkIcon className="h-5 w-5 text-red-500 mr-2" />
                 <span className="block sm:inline">{error}</span>
               </div>
+              <button 
+                onClick={() => setError(null)}
+                className="mt-2 text-xs flex items-center text-red-500 hover:text-red-600"
+              >
+                <ArrowPathIcon className="h-3 w-3 mr-1" /> Try again
+              </button>
             </div>
           )}
           
@@ -290,38 +318,33 @@ const CoachAI: React.FC = () => {
             type="text"
             value={inputMessage}
             onChange={handleInputChange}
-            placeholder="Type your message..."
-            className="flex-1 bg-gray-100 border-0 focus:ring-2 focus:ring-indigo-500 rounded-full py-3 px-4 text-gray-700 placeholder-gray-400 shadow-sm transition-all duration-200 focus:bg-white"
+            placeholder="Ask your fitness coach..."
+            className="flex-1 bg-gray-100 border-0 focus:ring-2 focus:ring-emerald-500 rounded-full py-3 px-5 text-gray-700 placeholder-gray-400 shadow-sm transition-all duration-200 focus:bg-white"
             disabled={isLoading}
           />
           <button
             type="submit"
-            className="inline-flex items-center justify-center p-3 rounded-full bg-indigo-600 text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 transition-colors duration-200"
+            className={`inline-flex items-center justify-center p-3 rounded-full bg-gradient-to-r from-emerald-500 to-blue-600 text-white shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 disabled:opacity-50 transition-all duration-200 ${!inputMessage.trim() ? 'opacity-70' : 'hover:scale-105'}`}
             disabled={isLoading || !inputMessage.trim()}
           >
             <PaperAirplaneIcon className="h-5 w-5" />
           </button>
         </form>
         
-        <div className="mt-3 px-2">
-          <p className="text-xs text-gray-500 mb-2">Quick questions:</p>
+        <div className="mt-4 px-1">
+          <p className="text-xs text-gray-500 mb-2 font-medium">Quick fitness questions:</p>
           <div className="flex flex-wrap gap-2">
-            {[
-              "Workout for upper body?",
-              "Nutrition tips?",
-              "Improve endurance?",
-              "Best exercises for beginners?",
-              "Recovery advice?"
-            ].map((question, index) => (
+            {quickQuestions.map((question, index) => (
               <button
                 key={index}
                 onClick={() => {
-                  setInputMessage(question);
+                  setInputMessage(question.text);
                   inputRef.current?.focus();
                 }}
-                className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-full transition-colors"
+                className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-full transition-colors flex items-center"
               >
-                {question}
+                {question.icon}
+                {question.text}
               </button>
             ))}
           </div>

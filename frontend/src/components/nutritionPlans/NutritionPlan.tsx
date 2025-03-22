@@ -21,6 +21,12 @@ interface Macros {
   fats: number;
 }
 
+interface CalorieCalculations {
+  bmr: number;
+  tdee: number;
+  goalAdjustedCalories: number;
+}
+
 interface NutritionPlanData {
   _id: string;
   userId: string;
@@ -28,6 +34,7 @@ interface NutritionPlanData {
   totalCalories: number;
   macros: Macros;
   nutritionTips: string[];
+  calorieCalculations: CalorieCalculations;
   createdAt: string;
 }
 
@@ -452,6 +459,30 @@ const NutritionPlan: React.FC<NutritionPlanProps> = ({ onFormToggle }) => {
           Customize Plan
         </button>
       </div>
+      
+      {/* Calorie Calculations Section */}
+      {nutritionPlan.calorieCalculations && (
+        <div className="mb-6 bg-green-50 rounded-lg p-4">
+          <h3 className="text-lg font-medium text-gray-900 mb-3">Your Calorie Needs</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-white p-3 rounded-md shadow-sm">
+              <div className="text-green-600 font-bold text-xl text-center">{nutritionPlan.calorieCalculations.bmr}</div>
+              <div className="text-gray-500 text-sm text-center">Basal Metabolic Rate</div>
+              <div className="text-xs text-gray-400 mt-1 text-center">Calories needed at complete rest</div>
+            </div>
+            <div className="bg-white p-3 rounded-md shadow-sm">
+              <div className="text-green-600 font-bold text-xl text-center">{nutritionPlan.calorieCalculations.tdee}</div>
+              <div className="text-gray-500 text-sm text-center">Total Daily Energy Expenditure</div>
+              <div className="text-xs text-gray-400 mt-1 text-center">Calories needed with your activity level</div>
+            </div>
+            <div className="bg-white p-3 rounded-md shadow-sm">
+              <div className="text-green-600 font-bold text-xl text-center">{nutritionPlan.calorieCalculations.goalAdjustedCalories}</div>
+              <div className="text-gray-500 text-sm text-center">Goal-Adjusted Calories</div>
+              <div className="text-xs text-gray-400 mt-1 text-center">Adjusted for your fitness goals</div>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Macros Section */}
       <div className="mb-6 bg-indigo-50 rounded-lg p-4">
