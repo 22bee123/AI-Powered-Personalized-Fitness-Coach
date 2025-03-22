@@ -8,12 +8,14 @@ import {
   ArrowRightOnRectangleIcon,
   BoltIcon,
   FireIcon,
-  ClipboardDocumentListIcon
+  ClipboardDocumentListIcon,
+  PlayIcon
 } from '@heroicons/react/24/outline';
 import Logo from '../../components/Logo';
 import WorkOut from '../../components/workoutPlans/WorkOut';
 import CoachAI from '../../components/coachAI/CoachAI';
 import NutritionPlan from '../../components/nutritionPlans/NutritionPlan';
+import StartWorkout from '../../components/startWorkout/StartWorkout';
 
 const DashboardPage = () => {
   const { user, logout } = useAuth();
@@ -68,6 +70,17 @@ const DashboardPage = () => {
             >
               <ClipboardDocumentListIcon className="mr-3 h-5 w-5" />
               Workout Plan
+            </button>
+            <button
+              onClick={() => setActiveTab('start-workout')}
+              className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-md ${
+                activeTab === 'start-workout' 
+                  ? 'bg-indigo-700 text-white' 
+                  : 'text-indigo-100 hover:bg-indigo-800'
+              }`}
+            >
+              <PlayIcon className="mr-3 h-5 w-5" />
+              Start Workout
             </button>
             <button
               onClick={() => setActiveTab('nutrition')}
@@ -206,11 +219,15 @@ const DashboardPage = () => {
           {activeTab === 'ai-coach' && (
             <CoachAI />
           )}
-
+          
           {activeTab === 'workout-plan' && (
             <WorkOut />
           )}
-
+          
+          {activeTab === 'start-workout' && (
+            <StartWorkout />
+          )}
+          
           {activeTab === 'nutrition' && (
             <NutritionPlan />
           )}

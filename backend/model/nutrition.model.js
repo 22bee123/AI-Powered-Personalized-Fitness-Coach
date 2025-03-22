@@ -27,6 +27,20 @@ const nutritionSchema = new mongoose.Schema({
       required: true
     }
   },
+  calorieCalculations: {
+    bmr: {
+      type: Number,
+      required: true
+    },
+    tdee: {
+      type: Number,
+      required: true
+    },
+    goalAdjustedCalories: {
+      type: Number,
+      required: true
+    }
+  },
   nutritionTips: {
     type: [String],
     required: true
