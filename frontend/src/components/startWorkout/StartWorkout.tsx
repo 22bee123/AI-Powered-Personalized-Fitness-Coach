@@ -4,13 +4,11 @@ import {
   PlayIcon, 
   PauseIcon, 
   ChevronLeftIcon,
-  WifiIcon,
   CheckCircleIcon,
   ClockIcon,
   ChevronRightIcon,
   XMarkIcon,
-  ArrowPathIcon,
-  Battery100Icon
+  ArrowPathIcon
 } from '@heroicons/react/24/outline';
 import { BoltIcon } from '@heroicons/react/24/solid';
 
@@ -332,51 +330,68 @@ const StartWorkout: React.FC = () => {
     
     return (
       <div>
-        <h2 className="text-xl font-semibold mb-4">Select a Day to Start</h2>
+        <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">Your Weekly Workout Plan</h2>
         
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6 mb-8">
           {Object.entries(workoutPlan.weeklyPlan).map(([day, dayPlan]) => {
             const isCompleted = dayPlan.isCompleted;
             const isSelected = selectedDay === day;
+            const isRestDay = dayPlan.focus.toLowerCase().includes('rest');
             
             return (
-              <button
+              <div
                 key={day}
-                onClick={() => setSelectedDay(day)}
-                disabled={isCompleted}
-                className={`p-4 rounded-lg border flex flex-col items-center transition-colors
-                  ${isSelected 
-                      ? 'bg-blue-50 border-blue-300 ring-2 ring-blue-300 ring-offset-2' 
-                      : isCompleted
-                      ? 'bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed'
-                      : 'bg-white border-gray-300 hover:bg-gray-50 text-gray-700'
+                onClick={() => !isRestDay && setSelectedDay(day)}
+                className={`p-3 sm:p-6 rounded-xl border transition-all ${
+                  isSelected 
+                    ? 'bg-blue-50 border-blue-300 ring-2 ring-blue-300 ring-offset-2 shadow-md' 
+                    : isCompleted
+                      ? 'bg-gray-50 border-gray-200 opacity-75'
+                      : isRestDay
+                        ? 'bg-gray-50 border-gray-200'
+                        : 'bg-white border-gray-200 hover:border-blue-200 hover:shadow-md cursor-pointer'
                 }`}
               >
-                <div className="font-medium">{day.charAt(0).toUpperCase() + day.slice(1)}</div>
-                <div className="text-sm mt-1">{dayPlan.focus}</div>
-                {isCompleted && (
-                  <div className="mt-2 flex items-center text-green-500 text-sm">
-                    <CheckCircleIcon className="h-4 w-4 mr-1" />
-                    Completed
+                <div className="flex justify-between items-start mb-2 sm:mb-4">
+                  <div className="font-bold text-lg sm:text-xl">{day.charAt(0).toUpperCase() + day.slice(1)}</div>
+                  {isCompleted ? (
+                    <div className="flex items-center text-green-500 text-xs sm:text-sm font-medium">
+                      <CheckCircleIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-1" />
+                      Completed
+                    </div>
+                  ) : isRestDay ? (
+                    <div className="text-gray-400 text-xs sm:text-sm font-medium">Rest Day</div>
+                  ) : (
+                    <div className="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-0.5 sm:py-1 rounded">
+                      Active
+                    </div>
+                  )}
+                </div>
+                
+                <div className="text-gray-700 text-sm sm:text-base font-medium">{dayPlan.focus}</div>
+                
+                {!isRestDay && (
+                  <div className="mt-2 sm:mt-4 text-xs sm:text-sm text-gray-500">
+                    {dayPlan.exercises.length} exercises
                   </div>
                 )}
-              </button>
+                
+                {isSelected && !isRestDay && !isCompleted && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      startNewWorkout();
+                    }}
+                    className="mt-3 sm:mt-4 w-full py-1.5 sm:py-2 px-3 sm:px-4 bg-indigo-600 text-white text-xs sm:text-sm font-medium rounded hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center justify-center"
+                  >
+                    <PlayIcon className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                    Start Workout
+                  </button>
+                )}
+              </div>
             );
           })}
         </div>
-        
-        {selectedDay && (
-          <div className="flex justify-center">
-            <button
-              onClick={startNewWorkout}
-              disabled={loading}
-              className="w-full sm:w-auto py-3 px-6 bg-emerald-600 text-white font-medium rounded-md hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 flex items-center justify-center"
-            >
-              <PlayIcon className="h-5 w-5 mr-2" />
-              Start {selectedDay.charAt(0).toUpperCase() + selectedDay.slice(1)} Workout
-            </button>
-          </div>
-        )}
       </div>
     );
   };
@@ -388,88 +403,103 @@ const StartWorkout: React.FC = () => {
     const currentExercise = activeWorkout.exercises[currentExerciseIndex];
     
     return (
-      <div className="flex flex-col items-center">
-        {/* Phone-style UI */}
-        <div className="w-full max-w-md bg-gradient-to-b from-gray-100 to-gray-200 rounded-3xl shadow-xl overflow-hidden border border-gray-300">
-          {/* Status bar */}
-          <div className="bg-black text-white px-4 py-2 flex justify-between items-center text-xs">
-            <div>{new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
-            <div className="font-semibold">
-              {selectedDay && selectedDay.charAt(0).toUpperCase() + selectedDay.slice(1)} Workout
-            </div>
+      <div className="flex flex-col lg:flex-row gap-4 md:gap-6">
+        {/* Main workout area */}
+        <div className="w-full lg:w-2/3 bg-white rounded-xl shadow-lg overflow-hidden">
+          {/* Header with day and timer */}
+          <div className="bg-gradient-to-r from-indigo-600 to-blue-500 text-white p-3 sm:p-4 flex justify-between items-center">
             <div className="flex items-center">
-              <WifiIcon className="h-3 w-3 mr-1" />
-              <Battery100Icon className="h-4 w-4" />
+              <h2 className="text-base sm:text-xl font-bold truncate">
+                {selectedDay && selectedDay.charAt(0).toUpperCase() + selectedDay.slice(1)} Workout
+              </h2>
+              <span className="ml-2 sm:ml-4 bg-white/20 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm">
+                {formatTime(timer)}
+              </span>
+            </div>
+            <div className="flex items-center space-x-2 sm:space-x-3">
+              <button
+                onClick={toggleSound}
+                className={`p-1.5 sm:p-2 rounded-full ${soundEnabled ? 'bg-white/20' : 'bg-white/10'}`}
+                title={soundEnabled ? "Sound On" : "Sound Off"}
+              >
+                {soundEnabled ? (
+                  <BoltIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+                ) : (
+                  <XMarkIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+                )}
+              </button>
             </div>
           </div>
           
           {/* Main content area */}
-          <div className="bg-white h-[500px] relative">
+          <div className="p-4 sm:p-6">
             {workoutStage === 'countdown' && renderCountdown()}
             {workoutStage === 'exercise' && renderExercise(currentExercise)}
             {workoutStage === 'completed' && renderWorkoutCompleted()}
           </div>
         </div>
         
-        {/* Sound toggle button */}
-        <div className="mt-4 flex justify-center">
-          <button
-            onClick={toggleSound}
-            className={`px-4 py-2 rounded-full flex items-center ${
-              soundEnabled ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
-            }`}
-          >
-            {soundEnabled ? (
-              <>
-                <BoltIcon className="h-4 w-4 mr-2" />
-                Sound On
-              </>
-            ) : (
-              <>
-                <XMarkIcon className="h-4 w-4 mr-2" />
-                Sound Off
-              </>
-            )}
-          </button>
-        </div>
-        
-        {/* Scrollable list of all exercises */}
-        <div className="mt-6 w-full max-w-md bg-white shadow rounded-lg p-4">
-          <h3 className="text-lg font-semibold mb-3">All Exercises</h3>
-          <div className="max-h-60 overflow-y-auto pr-2">
-            {activeWorkout.exercises.map((exercise, index) => (
+        {/* Sidebar with exercise list - becomes bottom section on mobile */}
+        <div className="w-full lg:w-1/3 bg-white rounded-xl shadow-lg overflow-hidden">
+          <div className="bg-gray-50 p-3 sm:p-4 border-b">
+            <h3 className="text-base sm:text-lg font-semibold">Workout Progress</h3>
+            <div className="mt-2 h-2 bg-gray-200 rounded-full overflow-hidden">
               <div 
-                key={exercise._id} 
-                className={`mb-2 p-3 rounded-lg border flex justify-between items-center ${
-                  index === currentExerciseIndex 
-                    ? 'bg-blue-50 border-blue-300' 
-                    : exercise.completed 
-                      ? 'bg-green-50 border-green-300' 
-                      : 'bg-gray-50 border-gray-300'
-                }`}
-              >
-                <div className="flex items-center">
-                  <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 text-gray-700 font-medium">
-                    {index + 1}
-                  </div>
-                  <div className="ml-3">
-                    <div className="font-medium">{exercise.exerciseName}</div>
-                    <div className="text-sm text-gray-500">
-                      {exercise.sets} sets × {exercise.reps} reps
+                className="h-full bg-green-500 transition-all duration-300"
+                style={{ 
+                  width: `${(activeWorkout.exercises.filter(e => e.completed).length / activeWorkout.exercises.length) * 100}%` 
+                }}
+              ></div>
+            </div>
+            <div className="mt-2 text-xs sm:text-sm text-gray-600 flex justify-between">
+              <span>{activeWorkout.exercises.filter(e => e.completed).length} completed</span>
+              <span>{activeWorkout.exercises.length} total</span>
+            </div>
+          </div>
+          
+          <div className="p-3 sm:p-4">
+            <h3 className="text-sm sm:text-md font-medium mb-2 sm:mb-3">Exercise List</h3>
+            <div className="max-h-[250px] sm:max-h-[300px] lg:max-h-[calc(100vh-300px)] overflow-y-auto pr-2 space-y-2">
+              {activeWorkout.exercises.map((exercise, index) => (
+                <div 
+                  key={exercise._id} 
+                  className={`p-2 sm:p-3 rounded-lg border flex justify-between items-center transition-all ${
+                    index === currentExerciseIndex 
+                      ? 'bg-blue-50 border-blue-300 shadow-sm' 
+                      : exercise.completed 
+                        ? 'bg-green-50 border-green-300' 
+                        : 'bg-gray-50 border-gray-300 hover:bg-gray-100'
+                  }`}
+                >
+                  <div className="flex items-center">
+                    <div className={`flex-shrink-0 w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center rounded-full ${
+                      index === currentExerciseIndex 
+                        ? 'bg-blue-100 text-blue-700' 
+                        : exercise.completed 
+                          ? 'bg-green-100 text-green-700' 
+                          : 'bg-gray-200 text-gray-700'
+                    } text-xs sm:text-sm font-medium`}>
+                      {index + 1}
+                    </div>
+                    <div className="ml-2 sm:ml-3">
+                      <div className="font-medium text-sm sm:text-base truncate max-w-[150px] sm:max-w-none">{exercise.exerciseName}</div>
+                      <div className="text-xs sm:text-sm text-gray-500">
+                        {exercise.sets} sets × {exercise.reps} reps
+                      </div>
                     </div>
                   </div>
+                  <div>
+                    {exercise.completed ? (
+                      <CheckCircleIcon className="h-5 w-5 sm:h-6 sm:w-6 text-green-500" />
+                    ) : index === currentExerciseIndex ? (
+                      <PlayIcon className="h-5 w-5 sm:h-6 sm:w-6 text-blue-500" />
+                    ) : (
+                      <ClockIcon className="h-5 w-5 sm:h-6 sm:w-6 text-gray-400" />
+                    )}
+                  </div>
                 </div>
-                <div>
-                  {exercise.completed ? (
-                    <CheckCircleIcon className="h-6 w-6 text-green-500" />
-                  ) : index === currentExerciseIndex ? (
-                    <PlayIcon className="h-6 w-6 text-blue-500" />
-                  ) : (
-                    <ClockIcon className="h-6 w-6 text-gray-400" />
-                  )}
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -484,19 +514,11 @@ const StartWorkout: React.FC = () => {
     const currentNumber = currentExerciseIndex + 1;
     
     return (
-      <div className="h-full flex flex-col">
-        {/* Exercise header */}
-        <div className="p-4 text-center">
-          <div className="text-sm text-gray-500">
-            Exercise {currentNumber} of {totalExercises}
-          </div>
-          <h2 className="text-xl font-bold mt-1">{exercise.exerciseName}</h2>
-        </div>
-        
+      <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-center">
         {/* Exercise image and timer */}
-        <div className="flex-1 flex flex-col items-center justify-center p-4">
-          <div className="relative">
-            <div className="w-48 h-48 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
+        <div className="w-full md:w-1/2 flex flex-col items-center">
+          <div className="relative mb-4 sm:mb-6">
+            <div className="w-48 h-48 sm:w-64 sm:h-64 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden">
               <img 
                 src={`/images/${exercise.exerciseName.toLowerCase().replace(/\s+/g, '-')}.jpg`} 
                 alt={exercise.exerciseName}
@@ -508,15 +530,15 @@ const StartWorkout: React.FC = () => {
               />
             </div>
             
-            {/* Circular timer */}
+            {/* Circular timer overlay */}
             <div className="absolute inset-0 flex items-center justify-center">
-              <svg className="w-56 h-56" viewBox="0 0 100 100">
+              <svg className="w-56 h-56 sm:w-72 sm:h-72" viewBox="0 0 100 100">
                 <circle
                   cx="50"
                   cy="50"
                   r="45"
                   fill="none"
-                  stroke="#e0e0e0"
+                  stroke="rgba(255,255,255,0.3)"
                   strokeWidth="5"
                 />
                 <circle
@@ -524,71 +546,95 @@ const StartWorkout: React.FC = () => {
                   cy="50"
                   r="45"
                   fill="none"
-                  stroke="#4f46e5"
+                  stroke="rgba(79, 70, 229, 0.9)"
                   strokeWidth="5"
                   strokeDasharray="283"
                   strokeDashoffset={283 - (exerciseTimer / 60) * 283}
                   transform="rotate(-90 50 50)"
                 />
               </svg>
-              <div className="absolute text-2xl font-bold">
+              <div className="absolute text-2xl sm:text-3xl font-bold text-white drop-shadow-lg">
                 {formatTime(exerciseTimer)}
               </div>
             </div>
           </div>
           
           {/* Timer controls */}
-          <div className="mt-6 flex space-x-4">
+          <div className="flex space-x-4">
             <button
               onClick={() => setExerciseTimerRunning(!exerciseTimerRunning)}
-              className="bg-indigo-600 text-white p-3 rounded-full hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              className="bg-indigo-600 text-white p-2 sm:p-3 rounded-full hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 shadow-md"
             >
               {exerciseTimerRunning ? (
-                <PauseIcon className="h-6 w-6" />
+                <PauseIcon className="h-5 w-5 sm:h-6 sm:w-6" />
               ) : (
-                <PlayIcon className="h-6 w-6" />
+                <PlayIcon className="h-5 w-5 sm:h-6 sm:w-6" />
               )}
             </button>
           </div>
         </div>
         
         {/* Exercise details */}
-        <div className="bg-gray-50 p-4 rounded-t-3xl border-t border-gray-200">
-          <div className="grid grid-cols-3 gap-4 mb-4">
-            <div className="text-center">
-              <div className="text-sm text-gray-500">Sets</div>
-              <div className="font-bold text-lg">{exercise.sets}</div>
+        <div className="w-full md:w-1/2">
+          <div className="mb-4 sm:mb-6">
+            <div className="text-xs sm:text-sm text-gray-500 mb-1">
+              Exercise {currentNumber} of {totalExercises}
             </div>
-            <div className="text-center">
-              <div className="text-sm text-gray-500">Reps</div>
-              <div className="font-bold text-lg">{exercise.reps}</div>
+            <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">{exercise.exerciseName}</h2>
+            
+            <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-6">
+              <div className="bg-gray-50 p-2 sm:p-4 rounded-lg text-center">
+                <div className="text-xs sm:text-sm text-gray-500 mb-1">Sets</div>
+                <div className="font-bold text-lg sm:text-xl">{exercise.sets}</div>
+              </div>
+              <div className="bg-gray-50 p-2 sm:p-4 rounded-lg text-center">
+                <div className="text-xs sm:text-sm text-gray-500 mb-1">Reps</div>
+                <div className="font-bold text-lg sm:text-xl">{exercise.reps}</div>
+              </div>
+              <div className="bg-gray-50 p-2 sm:p-4 rounded-lg text-center">
+                <div className="text-xs sm:text-sm text-gray-500 mb-1">Rest</div>
+                <div className="font-bold text-lg sm:text-xl">{exercise.duration}s</div>
+              </div>
             </div>
-            <div className="text-center">
-              <div className="text-sm text-gray-500">Rest</div>
-              <div className="font-bold text-lg">{exercise.duration}s</div>
+            
+            <div className="bg-gray-50 p-3 sm:p-4 rounded-lg mb-4 sm:mb-6">
+              <h3 className="font-medium text-sm sm:text-base mb-1 sm:mb-2">Instructions</h3>
+              <p className="text-gray-700 text-xs sm:text-sm">
+                Perform {exercise.sets} sets of {exercise.reps} repetitions with proper form. 
+                Rest for {exercise.duration} seconds between sets. Focus on controlled movements.
+              </p>
             </div>
           </div>
           
           {/* Navigation buttons */}
-          <div className="flex space-x-3">
+          <div className="flex space-x-3 sm:space-x-4">
             <button
               onClick={previousExercise}
               disabled={currentExerciseIndex === 0}
-              className={`flex-1 py-3 px-4 rounded-lg flex items-center justify-center font-medium ${
+              className={`flex-1 py-2 sm:py-3 px-3 sm:px-4 rounded-lg flex items-center justify-center text-sm sm:text-base font-medium ${
                 currentExerciseIndex === 0
                   ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                   : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
               }`}
             >
-              <ChevronLeftIcon className="h-5 w-5 mr-1" />
+              <ChevronLeftIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-1" />
               Previous
             </button>
             <button
               onClick={nextExercise}
-              className="flex-1 py-3 px-4 bg-indigo-600 text-white rounded-lg flex items-center justify-center font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              className="flex-1 py-2 sm:py-3 px-3 sm:px-4 bg-indigo-600 text-white rounded-lg flex items-center justify-center text-sm sm:text-base font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
             >
-              Next
-              <ChevronRightIcon className="h-5 w-5 ml-1" />
+              {currentExerciseIndex < (activeWorkout?.exercises.length || 0) - 1 ? (
+                <>
+                  Next
+                  <ChevronRightIcon className="h-4 w-4 sm:h-5 sm:w-5 ml-1" />
+                </>
+              ) : (
+                <>
+                  Complete
+                  <CheckCircleIcon className="h-4 w-4 sm:h-5 sm:w-5 ml-1" />
+                </>
+              )}
             </button>
           </div>
         </div>
@@ -603,65 +649,55 @@ const StartWorkout: React.FC = () => {
     const currentExercise = activeWorkout.exercises[currentExerciseIndex];
     
     return (
-      <div className="flex flex-col h-full max-w-xs mx-auto bg-gradient-to-b from-purple-400 to-indigo-500 rounded-3xl overflow-hidden shadow-2xl">
-        {/* Status bar */}
-        <div className="px-4 py-2 flex justify-between items-center text-white text-xs">
-          <div>9:41</div>
-          <div className="flex items-center space-x-1">
-            <div className="h-2 w-2 rounded-full bg-white"></div>
-            <div className="h-2 w-2 rounded-full bg-white"></div>
-            <div className="h-2 w-2 rounded-full bg-white"></div>
-          </div>
+      <div className="flex flex-col items-center justify-center py-4 sm:py-8">
+        <div className="text-center mb-4 sm:mb-8">
+          <h2 className="text-xl sm:text-2xl font-bold mb-1 sm:mb-2">Get Ready!</h2>
+          <p className="text-gray-600 text-sm sm:text-base">
+            Your next exercise is <span className="font-semibold">{currentExercise.exerciseName}</span>
+          </p>
         </div>
         
-        {/* Header */}
-        <div className="px-4 py-2 flex justify-between items-center">
-          <button className="text-white p-2 rounded-full">
-            <span className="flex items-center">
-              <ChevronLeftIcon className="h-5 w-5 mr-1" />
-              Back
-            </span>
-          </button>
-          <button 
-            onClick={() => {
-              setWorkoutStage('exercise');
-              if (countdownInterval) clearInterval(countdownInterval);
-            }}
-            className="text-white p-2 rounded-full"
-          >
-            Skip
-          </button>
-        </div>
-        
-        {/* Content */}
-        <div className="flex-1 flex flex-col items-center justify-between px-6 py-8 text-white">
-          <div className="text-center">
-            <h3 className="text-xl font-medium mb-2">Starting in</h3>
-            <div className="text-7xl font-bold font-mono my-4">
-              00:{countdownTimer.toString().padStart(2, '0')}
-            </div>
-            <p className="text-sm opacity-90">
-              Prepare for training!
-            </p>
-          </div>
-          
-          <div className="w-full">
-            <div className="relative">
-              <img 
-                src="/images/workout-preparation.png" 
-                alt="Workout preparation" 
-                className="w-full h-auto"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                }}
-              />
-              {/* Fallback if image doesn't exist */}
-              <div className="absolute inset-0 flex items-center justify-center text-center opacity-70">
-                <p>Get ready for: {currentExercise.exerciseName}</p>
-              </div>
+        <div className="relative w-32 h-32 sm:w-48 sm:h-48 mb-4 sm:mb-8">
+          <svg className="w-full h-full" viewBox="0 0 100 100">
+            <circle
+              cx="50"
+              cy="50"
+              r="45"
+              fill="none"
+              stroke="#e0e0e0"
+              strokeWidth="5"
+            />
+            <circle
+              cx="50"
+              cy="50"
+              r="45"
+              fill="none"
+              stroke="#4f46e5"
+              strokeWidth="5"
+              strokeDasharray="283"
+              strokeDashoffset={283 - (countdownTimer / 5) * 283}
+              transform="rotate(-90 50 50)"
+            />
+          </svg>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-4xl sm:text-6xl font-bold text-indigo-600">
+              {countdownTimer}
             </div>
           </div>
         </div>
+        
+        <button
+          onClick={() => {
+            if (countdownInterval) {
+              clearInterval(countdownInterval);
+              setCountdownInterval(null);
+            }
+            setWorkoutStage('exercise');
+          }}
+          className="py-2 sm:py-3 px-4 sm:px-6 bg-indigo-600 text-white text-sm sm:text-base font-medium rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+        >
+          Skip
+        </button>
       </div>
     );
   };
@@ -671,32 +707,32 @@ const StartWorkout: React.FC = () => {
     if (!activeWorkout) return null;
     
     return (
-      <div className="h-full flex flex-col items-center justify-center p-6 text-center">
-        <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mb-6">
-          <CheckCircleIcon className="h-10 w-10 text-green-500" />
+      <div className="flex flex-col items-center justify-center py-4 sm:py-8 text-center">
+        <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-full bg-green-100 flex items-center justify-center mb-4 sm:mb-6">
+          <CheckCircleIcon className="h-8 w-8 sm:h-12 sm:w-12 text-green-500" />
         </div>
         
-        <h2 className="text-2xl font-bold mb-2">Workout Complete!</h2>
-        <p className="text-gray-600 mb-6">
+        <h2 className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2">Workout Complete!</h2>
+        <p className="text-lg sm:text-xl text-gray-600 mb-4 sm:mb-8">
           Great job! You've completed your workout.
         </p>
         
-        <div className="bg-gray-50 rounded-lg p-4 w-full max-w-xs mb-8">
-          <div className="flex justify-between items-center mb-3">
-            <div className="text-gray-500">Total Time:</div>
-            <div className="font-bold text-xl">{formatTime(timer)}</div>
+        <div className="grid grid-cols-2 gap-3 sm:gap-6 mb-6 sm:mb-8 w-full max-w-xs sm:max-w-md">
+          <div className="bg-gray-50 rounded-lg p-3 sm:p-6">
+            <div className="text-gray-500 text-xs sm:text-sm mb-1">Total Time</div>
+            <div className="font-bold text-xl sm:text-3xl text-indigo-600">{formatTime(timer)}</div>
           </div>
-          <div className="flex justify-between items-center">
-            <div className="text-gray-500">Exercises Completed:</div>
-            <div className="font-bold text-xl">{activeWorkout.exercises.length}</div>
+          <div className="bg-gray-50 rounded-lg p-3 sm:p-6">
+            <div className="text-gray-500 text-xs sm:text-sm mb-1">Exercises</div>
+            <div className="font-bold text-xl sm:text-3xl text-indigo-600">{activeWorkout.exercises.length}</div>
           </div>
         </div>
         
         <button
           onClick={completeWorkout}
-          className="w-full py-3 px-6 bg-emerald-600 text-white font-medium rounded-md hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 flex items-center justify-center"
+          className="py-3 sm:py-4 px-6 sm:px-8 bg-emerald-600 text-white text-sm sm:text-lg font-medium rounded-lg hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 flex items-center justify-center"
         >
-          <ArrowPathIcon className="h-5 w-5 mr-2" />
+          <ArrowPathIcon className="h-5 w-5 sm:h-6 sm:w-6 mr-2" />
           Finish & Continue to Next Day
         </button>
       </div>
@@ -741,39 +777,27 @@ const StartWorkout: React.FC = () => {
 
   // Main render
   return (
-    <div className="bg-white shadow-sm rounded-lg p-6">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Start Workout</h2>
-          <p className="text-gray-600 mt-1">Track your workout progress in real-time</p>
-        </div>
-      </div>
-
+    <div className="bg-gray-50 p-6 rounded-lg">
       {error && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md flex items-center text-red-700">
-          <XMarkIcon className="h-5 w-5 mr-2" />
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
           {error}
         </div>
       )}
-
+      
       {loading ? (
         <div className="flex justify-center items-center py-12">
-          <ArrowPathIcon className="h-8 w-8 text-emerald-500 animate-spin" />
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
         </div>
       ) : (
         <>
+          {/* Audio elements */}
+          <audio ref={countdownEndRef} src="/sounds/countdown-end.mp3" />
+          <audio ref={exerciseCompleteRef} src="/sounds/exercise-complete.mp3" />
+          
           {activeWorkout ? (
-            <div className="h-[650px] mx-auto bg-gray-100 p-4 rounded-lg">
-              {/* Audio elements */}
-              <audio ref={countdownEndRef} src="/sounds/countdown-end.mp3" />
-              <audio ref={exerciseCompleteRef} src="/sounds/exercise-complete.mp3" />
-              
-              {renderActiveWorkout()}
-            </div>
+            renderActiveWorkout()
           ) : (
-            <>
-              {renderWorkoutSelection()}
-            </>
+            renderWorkoutSelection()
           )}
         </>
       )}
