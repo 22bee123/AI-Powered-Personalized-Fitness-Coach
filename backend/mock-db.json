@@ -1,10 +1,27 @@
 [
   {
     "_id": "1742369391893",
-    "name": "Kian",
+    "name": "Paulkian Facebook",
     "email": "paulkianfacebook@gmail.com",
     "password": "$2b$10$Us7h/2wlHpWPzn4QbFyieenxN1YSB091FvvSX7dctQPoBc6hkEOH2",
     "createdAt": "2025-03-19T07:29:51.893Z",
-    "updatedAt": "2025-03-19T07:29:51.893Z"
+    "updatedAt": "2025-03-23T16:10:31.414Z",
+    "clerkId": "user_2uium3XWmIJ31PNktUjhhnasN1W"
+  },
+  {
+    "_id": "67dfbeac726dcf374d7271bf",
+    "clerkId": "user_2ui1SpNNv02QNp0lpA6ZpQpEDB0",
+    "name": "Snowie Clothing",
+    "email": "clothingsnowie@gmail.com",
+    "createdAt": "2025-03-23T07:56:28.457Z",
+    "updatedAt": "2025-03-23T07:56:28.457Z",
+    "fitnessGoals": "general_fitness",
+    "fitnessLevel": "beginner",
+    "preferredWorkoutDays": [],
+    "profilePicture": "",
+    "height": 0,
+    "weight": 0,
+    "age": 0,
+    "gender": ""
   }
 ]
