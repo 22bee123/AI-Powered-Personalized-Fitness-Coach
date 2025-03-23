@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/ClerkAuthContext';
 import { 
   ChartBarIcon, 
   ChatBubbleLeftRightIcon, 
@@ -22,6 +22,7 @@ import WorkOut from '../../components/workoutPlans/WorkOut';
 import CoachAI from '../../components/coachAI/CoachAI';
 import NutritionPlan from '../../components/nutritionPlans/NutritionPlan';
 import StartWorkout from '../../components/startWorkout/StartWorkout';
+import WorkoutForm from '../../components/workoutPlans/WorkoutForm';
 
 const DashboardPage = () => {
   const { user, logout } = useAuth();
@@ -56,6 +57,7 @@ const DashboardPage = () => {
     return navigationItems.map((item) => (
       <button
         key={item.id}
+        type="button"
         onClick={() => setActiveTab(item.id)}
         className={`
           ${isMobileView 
@@ -104,6 +106,7 @@ const DashboardPage = () => {
           <div className="flex items-center justify-between h-20 px-6 border-b border-indigo-700/50">
             <Logo size="small" className="justify-center" />
             <button 
+              type="button"
               onClick={() => setMobileMenuOpen(false)}
               className="p-2 rounded-full text-indigo-200 hover:text-white hover:bg-indigo-700/50 focus:outline-none transition-colors"
             >
@@ -126,6 +129,7 @@ const DashboardPage = () => {
           </nav>
           <div className="p-4 border-t border-indigo-700/50">
             <button
+              type="button"
               onClick={logout}
               className="w-full flex items-center px-4 py-2 text-sm font-medium text-indigo-100 rounded-lg hover:bg-indigo-700/50 transition-colors"
             >
@@ -169,6 +173,7 @@ const DashboardPage = () => {
                 </div>
               </div>
               <button
+                type="button"
                 onClick={logout}
                 className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-indigo-600 rounded-md transition-colors"
               >
@@ -200,6 +205,7 @@ const DashboardPage = () => {
                   </p>
                   <div className="flex flex-wrap gap-4">
                     <button 
+                      type="button"
                       onClick={() => setActiveTab('ai-coach')}
                       className="px-6 py-3 bg-white text-indigo-700 font-medium rounded-lg shadow-md hover:bg-indigo-50 transition-colors flex items-center"
                     >
@@ -207,6 +213,7 @@ const DashboardPage = () => {
                       Chat with AI Coach
                     </button>
                     <button 
+                      type="button"
                       onClick={() => setActiveTab('start-workout')}
                       className="px-6 py-3 bg-indigo-800 text-white font-medium rounded-lg shadow-md hover:bg-indigo-700 transition-colors flex items-center"
                     >
@@ -295,8 +302,12 @@ const DashboardPage = () => {
 
         {activeTab === 'ai-coach' && <CoachAI />}
         {activeTab === 'workout-plan' && <WorkOut />}
-        {activeTab === 'start-workout' && <StartWorkout />}
+        {activeTab === 'start-workout' && <StartWorkout setActiveTab={setActiveTab} />}
         {activeTab === 'nutrition' && <NutritionPlan />}
+        {activeTab === 'workout-form' && <WorkoutForm onWorkoutGenerated={(plan) => {
+          // After workout plan is generated, navigate to workout-plan tab
+          setActiveTab('workout-plan');
+        }} setLoading={() => {}} />}
         {activeTab === 'profile' && (
           <div className="bg-white shadow-md rounded-xl overflow-hidden border border-gray-100">
             <div className="px-6 py-5 border-b border-gray-100 bg-gray-50">

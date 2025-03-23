@@ -8,7 +8,8 @@ import {
   ClockIcon,
   ChevronRightIcon,
   XMarkIcon,
-  ArrowPathIcon
+  ArrowPathIcon,
+  CalendarIcon
 } from '@heroicons/react/24/outline';
 import { BoltIcon } from '@heroicons/react/24/solid';
 
@@ -58,7 +59,11 @@ interface WorkoutPlan {
   createdAt: string;
 }
 
-const StartWorkout: React.FC = () => {
+interface StartWorkoutProps {
+  setActiveTab?: (tab: string) => void;
+}
+
+const StartWorkout: React.FC<StartWorkoutProps> = ({ setActiveTab }) => {
   const [workoutPlan, setWorkoutPlan] = useState<WorkoutPlan | null>(null);
   const [activeWorkout, setActiveWorkout] = useState<Workout | null>(null);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
@@ -120,6 +125,17 @@ const StartWorkout: React.FC = () => {
     try {
       const response = await api.get('/workouts/latest');
       setWorkoutPlan(response.data.workoutPlan);
+      
+      // Automatically select today's workout day
+      if (response.data.workoutPlan) {
+        const daysOfWeek = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        const today = daysOfWeek[new Date().getDay()];
+        
+        // Check if today's workout exists in the plan
+        if (response.data.workoutPlan.weeklyPlan[today]) {
+          setSelectedDay(today);
+        }
+      }
     } catch (err: any) {
       if (err.response?.status !== 404) {
         setError('Failed to load workout plan. Please try again.');
@@ -318,168 +334,316 @@ const StartWorkout: React.FC = () => {
   const renderWorkoutSelection = () => {
     if (!workoutPlan) return null;
     
+    // Get today's day name
+    const daysOfWeek = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const today = daysOfWeek[new Date().getDay()];
+    
     return (
-      <div className="space-y-6">
-        <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Your Weekly Workout Plan</h2>
-            <div className="flex items-center space-x-2">
-              <div className="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-sm font-medium">
-                {Object.values(workoutPlan.weeklyPlan).filter(day => day.isCompleted).length} Days Completed
+      <div className="space-y-8">
+        {/* Header Section */}
+        <div className="bg-gradient-to-r from-indigo-600 to-blue-500 rounded-2xl shadow-lg p-6 text-white">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold mb-2">Your Weekly Workout Plan</h1>
+              <p className="text-indigo-100 text-sm md:text-base">
+                Stay consistent with your training to reach your fitness goals
+              </p>
+            </div>
+            <div className="flex items-center space-x-3">
+              <div className="bg-white/20 text-white px-4 py-2 rounded-xl text-sm md:text-base font-medium">
+                Difficulty: {workoutPlan.difficulty}
+              </div>
+              <div className="bg-white/20 text-white px-4 py-2 rounded-xl text-sm md:text-base font-medium">
+                {Object.values(workoutPlan.weeklyPlan).filter(day => day.isCompleted).length}/{Object.keys(workoutPlan.weeklyPlan).length} Completed
               </div>
             </div>
           </div>
           
-          {/* Weekly schedule indicator */}
-          <div className="mb-5 pb-4 border-b border-gray-100">
-            <div className="text-sm font-medium text-gray-700 mb-2">Weekly Schedule Progress</div>
-            <div className="flex items-center justify-between">
-              <div className="relative flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-                <div 
-                  className="absolute h-full bg-indigo-500"
-                  style={{width: `${(Object.values(workoutPlan.weeklyPlan).filter(day => day.isCompleted).length / Object.keys(workoutPlan.weeklyPlan).length) * 100}%`}}
-                ></div>
-              </div>
-              <div className="ml-4 text-sm font-medium text-indigo-600">
-                {Object.values(workoutPlan.weeklyPlan).filter(day => day.isCompleted).length}/{Object.keys(workoutPlan.weeklyPlan).length} days
-              </div>
+          {/* Weekly progress bar */}
+          <div className="mt-6">
+            <div className="flex justify-between mb-2">
+              <span className="text-sm font-medium">Weekly Progress</span>
+              <span className="text-sm font-medium">
+                {Math.round((Object.values(workoutPlan.weeklyPlan).filter(day => day.isCompleted).length / Object.keys(workoutPlan.weeklyPlan).length) * 100)}%
+              </span>
+            </div>
+            <div className="relative h-3 bg-white/20 rounded-full overflow-hidden">
+              <div 
+                className="absolute h-full bg-white transition-all duration-500 ease-out"
+                style={{width: `${(Object.values(workoutPlan.weeklyPlan).filter(day => day.isCompleted).length / Object.keys(workoutPlan.weeklyPlan).length) * 100}%`}}
+              ></div>
             </div>
             <div className="flex justify-between mt-2">
-              {Object.keys(workoutPlan.weeklyPlan).map((_, index) => (
-                <div 
-                  key={index}
-                  className={`h-6 w-6 flex items-center justify-center rounded-full text-xs ${
-                    index < Object.values(workoutPlan.weeklyPlan).filter(day => day.isCompleted).length
-                      ? 'bg-indigo-500 text-white'
-                      : 'bg-gray-100 text-gray-500'
-                  }`}
-                >
-                  {index + 1}
-                </div>
-              ))}
+              {Object.keys(workoutPlan.weeklyPlan).map((day, index) => {
+                const isCompleted = workoutPlan.weeklyPlan[day].isCompleted;
+                return (
+                  <div 
+                    key={day}
+                    className={`h-6 w-6 flex items-center justify-center rounded-full text-xs ${
+                      isCompleted
+                        ? 'bg-white text-indigo-600'
+                        : day === today 
+                          ? 'bg-yellow-300 text-indigo-800' 
+                          : 'bg-white/30 text-white'
+                    }`}
+                  >
+                    {index + 1}
+                  </div>
+                );
+              })}
             </div>
           </div>
+        </div>
+        
+        {/* Today's workout highlight */}
+        {(() => {
+          const daysOfWeek = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+          const today = daysOfWeek[new Date().getDay()];
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          if (workoutPlan.weeklyPlan[today] && 
+              !workoutPlan.weeklyPlan[today].isCompleted && 
+              !workoutPlan.weeklyPlan[today].focus.toLowerCase().includes('rest')) {
+            
+            return (
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 p-6 rounded-2xl shadow-md">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                  <div className="flex items-start md:items-center gap-4">
+                    <div className="bg-blue-500 p-3 rounded-full">
+                      <CalendarIcon className="h-6 w-6 text-white" />
+                    </div>
+                    <div>
+                      <div className="bg-yellow-300 text-yellow-800 text-xs font-bold uppercase tracking-wide px-2 py-1 rounded-full inline-block mb-2">Today's Workout</div>
+                      <h2 className="text-xl font-bold text-gray-900">{workoutPlan.weeklyPlan[today].focus}</h2>
+                      <p className="text-gray-600 mt-1 max-w-md">
+                        {workoutPlan.weeklyPlan[today].exercises.length} exercises • {workoutPlan.weeklyPlan[today].duration} • {workoutPlan.weeklyPlan[today].exercises.length} muscle groups
+                      </p>
+                    </div>
+                  </div>
+                  <div className="ml-auto">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedDay(today);
+                        startNewWorkout();
+                      }}
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl flex items-center font-medium shadow-lg transition-all duration-200 transform hover:scale-105"
+                    >
+                      <PlayIcon className="h-5 w-5 mr-2" />
+                      Start Today's Workout
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+          return null;
+        })()}
+        
+        {/* Workout days grid */}
+        <div className="bg-white rounded-2xl shadow-lg p-6">
+          <h2 className="text-xl font-bold text-gray-900 mb-6">Weekly Schedule</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {Object.entries(workoutPlan.weeklyPlan).map(([day, dayPlan]) => {
               const isCompleted = dayPlan.isCompleted;
               const isSelected = selectedDay === day;
               const isRestDay = dayPlan.focus.toLowerCase().includes('rest');
-              const isToday = new Date().getDay() === ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].indexOf(day.toLowerCase());
+              const daysOfWeek = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+              const todayIndex = new Date().getDay();
+              const today = daysOfWeek[todayIndex];
+              const isToday = day === today;
+              const isPast = daysOfWeek.indexOf(day) < todayIndex && !isToday;
               
               return (
                 <div
                   key={day}
-                  onClick={() => !isRestDay && setSelectedDay(day)}
-                  className={`relative p-4 rounded-xl border transition-all ${
+                  onClick={() => isToday && !isRestDay && !isCompleted ? setSelectedDay(day) : null}
+                  className={`relative rounded-xl border-2 transition-all duration-200 overflow-hidden ${
                     isSelected 
-                      ? 'bg-indigo-50 border-indigo-300 ring-2 ring-indigo-300 ring-offset-2 shadow-md' 
+                      ? 'ring-4 ring-indigo-300 ring-offset-2 border-indigo-400 shadow-lg' 
                       : isCompleted
-                        ? 'bg-green-50 border-green-200'
+                        ? 'border-green-300 bg-green-50'
                         : isRestDay
-                          ? 'bg-gray-50 border-gray-200'
-                          : 'bg-white border-gray-200 hover:border-indigo-200 hover:shadow-md cursor-pointer'
+                          ? 'border-gray-200 bg-gray-50'
+                          : isToday
+                            ? 'border-blue-400 bg-blue-50 hover:shadow-lg cursor-pointer transform hover:scale-105'
+                            : isPast
+                              ? 'border-gray-200 bg-gray-50 opacity-80'
+                              : 'border-gray-200 bg-white hover:border-indigo-200'
                   }`}
                 >
-                  {/* Day indicator */}
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center space-x-2">
-                      <div className={`h-8 w-8 rounded-full flex items-center justify-center ${
-                        isCompleted 
-                          ? 'bg-green-100 text-green-600'
-                          : isRestDay
-                            ? 'bg-gray-100 text-gray-600'
-                            : 'bg-indigo-100 text-indigo-600'
-                      }`}>
-                        {Object.keys(workoutPlan.weeklyPlan).indexOf(day) + 1}
+                  {/* Day header */}
+                  <div className={`p-4 ${
+                    isCompleted 
+                      ? 'bg-green-100' 
+                      : isRestDay 
+                        ? 'bg-gray-100' 
+                        : isToday 
+                          ? 'bg-blue-100' 
+                          : isPast 
+                            ? 'bg-gray-100' 
+                            : 'bg-indigo-50'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className={`h-10 w-10 rounded-full flex items-center justify-center font-bold ${
+                          isCompleted 
+                            ? 'bg-green-500 text-white' 
+                            : isRestDay 
+                              ? 'bg-gray-400 text-white' 
+                              : isToday 
+                                ? 'bg-blue-500 text-white' 
+                                : isPast 
+                                  ? 'bg-gray-300 text-gray-700' 
+                                  : 'bg-indigo-500 text-white'
+                        }`}>
+                          {day.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <div className="font-bold text-gray-900">{day.charAt(0).toUpperCase() + day.slice(1)}</div>
+                          <div className="text-xs text-gray-500">Day {Object.keys(workoutPlan.weeklyPlan).indexOf(day) + 1}</div>
+                        </div>
                       </div>
-                      <div>
-                        <div className="font-bold text-lg">{day.charAt(0).toUpperCase() + day.slice(1)}</div>
-                        <div className="text-xs text-gray-500">Day {Object.keys(workoutPlan.weeklyPlan).indexOf(day) + 1}</div>
-                      </div>
+                      {isToday && (
+                        <div className="bg-yellow-300 text-yellow-800 text-xs font-bold uppercase tracking-wide px-2 py-1 rounded-full">
+                          Today
+                        </div>
+                      )}
                     </div>
-                    {isToday && (
-                      <div className="bg-indigo-100 text-indigo-800 text-xs font-medium px-2 py-1 rounded-full">
-                        Today
-                      </div>
-                    )}
                   </div>
 
-                  {/* Workout focus */}
-                  <div className="mb-3">
-                    <div className="text-sm font-medium text-gray-900">{dayPlan.focus}</div>
-                    {!isRestDay && (
-                      <div className="text-xs text-gray-500 mt-1">
-                        {dayPlan.exercises.length} exercises • {dayPlan.duration}
-                      </div>
-                    )}
-                  </div>
+                  {/* Workout details */}
+                  <div className="p-4">
+                    <div className="mb-3">
+                      <div className="text-lg font-semibold text-gray-900">{dayPlan.focus}</div>
+                      {!isRestDay && (
+                        <div className="text-sm text-gray-600 mt-1">
+                          {dayPlan.exercises.length} exercises • {dayPlan.duration}
+                        </div>
+                      )}
+                    </div>
 
-                  {/* Status and action */}
-                  <div className="flex items-center justify-between">
-                    {isCompleted ? (
-                      <div className="flex items-center text-green-600 text-sm font-medium">
-                        <CheckCircleIcon className="h-4 w-4 mr-1" />
-                        Completed
-                      </div>
-                    ) : isRestDay ? (
-                      <div className="text-gray-400 text-sm font-medium">Rest Day</div>
-                    ) : (
-                      <div className="flex items-center text-indigo-600 text-sm font-medium">
-                        <PlayIcon className="h-4 w-4 mr-1" />
-                        Ready to Start
+                    {/* Exercise list preview */}
+                    {!isRestDay && dayPlan.exercises.length > 0 && (
+                      <div className="space-y-2 mb-4">
+                        {dayPlan.exercises.slice(0, 3).map((exercise, idx) => (
+                          <div key={idx} className="flex items-center text-sm">
+                            <div className="h-2 w-2 rounded-full bg-indigo-400 mr-2"></div>
+                            <span className="text-gray-700 truncate">{exercise.name}</span>
+                          </div>
+                        ))}
+                        {dayPlan.exercises.length > 3 && (
+                          <div className="text-xs text-indigo-600 font-medium">
+                            +{dayPlan.exercises.length - 3} more exercises
+                          </div>
+                        )}
                       </div>
                     )}
-                    
-                    {isSelected && !isRestDay && !isCompleted && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          startNewWorkout();
-                        }}
-                        className="bg-indigo-600 text-white text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center"
-                      >
-                        <PlayIcon className="h-4 w-4 mr-1" />
-                        Start
-                      </button>
-                    )}
-                  </div>
 
-                  {/* Progress indicator */}
-                  {isCompleted && (
-                    <div className="absolute bottom-0 left-0 right-0 h-1 bg-green-500 rounded-b-xl"></div>
-                  )}
+                    {/* Status and action */}
+                    <div className="flex items-center justify-between mt-2">
+                      {isCompleted ? (
+                        <div className="flex items-center text-green-600 text-sm font-medium">
+                          <CheckCircleIcon className="h-5 w-5 mr-1" />
+                          Completed
+                        </div>
+                      ) : isRestDay ? (
+                        <div className="text-gray-500 text-sm font-medium">Rest Day</div>
+                      ) : isToday ? (
+                        <div className="flex items-center text-blue-600 text-sm font-medium">
+                          <PlayIcon className="h-5 w-5 mr-1" />
+                          Ready to Start
+                        </div>
+                      ) : isPast ? (
+                        <div className="text-gray-500 text-sm font-medium">Missed</div>
+                      ) : (
+                        <div className="text-gray-500 text-sm font-medium">
+                          <ClockIcon className="h-5 w-5 mr-1 inline" />
+                          Upcoming
+                        </div>
+                      )}
+                      
+                      {isSelected && isToday && !isRestDay && !isCompleted && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            startNewWorkout();
+                          }}
+                          className="bg-indigo-600 text-white text-sm font-medium px-3 py-2 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center"
+                        >
+                          <PlayIcon className="h-4 w-4 mr-1" />
+                          Start
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Bottom indicator */}
+                  <div className={`absolute bottom-0 left-0 right-0 h-1 ${
+                    isCompleted 
+                      ? 'bg-green-500' 
+                      : isToday && !isRestDay 
+                        ? 'bg-blue-500' 
+                        : 'bg-transparent'
+                  }`}></div>
                 </div>
               );
             })}
           </div>
         </div>
-
-        {/* Weekly summary */}
-        <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Weekly Summary</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <div className="text-sm text-gray-500">Total Workouts</div>
-              <div className="text-2xl font-bold text-gray-900">
+        
+        {/* Stats cards */}
+        <div className="bg-white rounded-2xl shadow-lg p-6">
+          <h3 className="text-xl font-bold text-gray-900 mb-6">Weekly Summary</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            <div className="bg-gradient-to-br from-indigo-50 to-blue-50 p-6 rounded-xl border border-indigo-100">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-indigo-600 font-medium">Total Workouts</div>
+                <div className="bg-indigo-100 p-2 rounded-full">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                </div>
+              </div>
+              <div className="text-3xl font-bold text-gray-900">
                 {Object.values(workoutPlan.weeklyPlan).filter(day => !day.focus.toLowerCase().includes('rest')).length}
               </div>
             </div>
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <div className="text-sm text-gray-500">Completed</div>
-              <div className="text-2xl font-bold text-green-600">
+            
+            <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-6 rounded-xl border border-green-100">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-green-600 font-medium">Completed</div>
+                <div className="bg-green-100 p-2 rounded-full">
+                  <CheckCircleIcon className="h-5 w-5 text-green-600" />
+                </div>
+              </div>
+              <div className="text-3xl font-bold text-gray-900">
                 {Object.values(workoutPlan.weeklyPlan).filter(day => day.isCompleted).length}
               </div>
             </div>
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <div className="text-sm text-gray-500">Rest Days</div>
-              <div className="text-2xl font-bold text-gray-600">
+            
+            <div className="bg-gradient-to-br from-gray-50 to-slate-50 p-6 rounded-xl border border-gray-100">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-gray-600 font-medium">Rest Days</div>
+                <div className="bg-gray-100 p-2 rounded-full">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                  </svg>
+                </div>
+              </div>
+              <div className="text-3xl font-bold text-gray-900">
                 {Object.values(workoutPlan.weeklyPlan).filter(day => day.focus.toLowerCase().includes('rest')).length}
               </div>
             </div>
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <div className="text-sm text-gray-500">Remaining</div>
-              <div className="text-2xl font-bold text-indigo-600">
+            
+            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-100">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-blue-600 font-medium">Remaining</div>
+                <div className="bg-blue-100 p-2 rounded-full">
+                  <ClockIcon className="h-5 w-5 text-blue-600" />
+                </div>
+              </div>
+              <div className="text-3xl font-bold text-gray-900">
                 {Object.values(workoutPlan.weeklyPlan).filter(day => !day.isCompleted && !day.focus.toLowerCase().includes('rest')).length}
               </div>
             </div>
@@ -934,7 +1098,28 @@ const StartWorkout: React.FC = () => {
             renderActiveWorkout()
           ) : (
             <>
-              {renderWorkoutSelection()}
+              {workoutPlan ? (
+                renderWorkoutSelection()
+              ) : (
+                <div className="text-center py-12">
+                  <div className="mx-auto w-24 h-24 bg-indigo-100 rounded-full flex items-center justify-center mb-6">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">No Workout Plan Yet</h2>
+                  <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                    You haven't created a workout plan yet. Create your personalized workout plan to get started.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab ? setActiveTab('workout-form') : null}
+                    className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  >
+                    Create Workout Plan
+                  </button>
+                </div>
+              )}
               {activeWorkout && (
                 <div className="bg-indigo-50 border border-indigo-100 mt-6 p-4 rounded-lg">
                   <div className="flex items-center justify-between">
@@ -945,6 +1130,7 @@ const StartWorkout: React.FC = () => {
                       </div>
                     </div>
                     <button
+                      type="button"
                       onClick={() => setShowWorkoutSelection(false)}
                       className="bg-indigo-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center"
                     >

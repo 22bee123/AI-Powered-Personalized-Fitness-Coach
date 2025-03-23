@@ -1,13 +1,17 @@
 import { ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/ClerkAuthContext';
+import { useUser } from '@clerk/clerk-react';
 
 interface ProtectedRouteProps {
   children: ReactNode;
 }
 
 const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isLoading: isAuthLoading } = useAuth();
+  const { isLoaded: isClerkLoaded, isSignedIn } = useUser();
+
+  const isLoading = isAuthLoading || !isClerkLoaded;
 
   if (isLoading) {
     return (
@@ -17,7 +21,7 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     );
   }
 
-  if (!isAuthenticated) {
+  if (!isSignedIn) {
     return <Navigate to="/login" />;
   }
 
