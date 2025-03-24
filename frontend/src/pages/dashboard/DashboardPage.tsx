@@ -23,11 +23,33 @@ import CoachAI from '../../components/coachAI/CoachAI';
 import NutritionPlan from '../../components/nutritionPlans/NutritionPlan';
 import StartWorkout from '../../components/startWorkout/StartWorkout';
 import WorkoutForm from '../../components/workoutPlans/WorkoutForm';
+import api from '../../utils/api';
+
+// Interface for workout completion data
+interface WorkoutComplete {
+  _id: string;
+  userId: string;
+  workoutPlanId: string;
+  day: string;
+  focus: string;
+  completedAt: string;
+  totalDuration: number;
+  exercisesCompleted: number;
+}
 
 const DashboardPage = () => {
   const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [completedWorkouts, setCompletedWorkouts] = useState<WorkoutComplete[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [dashboardStats, setDashboardStats] = useState([
+    { name: 'Workouts Completed', value: '0', icon: CheckCircleIcon, color: 'bg-emerald-100 text-emerald-600' },
+    { name: 'Calories Burned', value: '0', icon: FireIconSolid, color: 'bg-orange-100 text-orange-600' },
+    { name: 'Active Days', value: '0', icon: CalendarIcon, color: 'bg-blue-100 text-blue-600' },
+    { name: 'Fitness Score', value: '0', icon: TrophyIcon, color: 'bg-purple-100 text-purple-600' },
+  ]);
 
   // Close mobile menu when changing tabs
   useEffect(() => {
@@ -36,13 +58,71 @@ const DashboardPage = () => {
     }
   }, [activeTab]);
 
-  // Mock data for dashboard
-  const stats = [
-    { name: 'Workouts Completed', value: '12', icon: CheckCircleIcon, color: 'bg-emerald-100 text-emerald-600' },
-    { name: 'Calories Burned', value: '8,540', icon: FireIconSolid, color: 'bg-orange-100 text-orange-600' },
-    { name: 'Active Days', value: '18', icon: CalendarIcon, color: 'bg-blue-100 text-blue-600' },
-    { name: 'Fitness Score', value: '82', icon: TrophyIcon, color: 'bg-purple-100 text-purple-600' },
-  ];
+  // Fetch completed workouts when component mounts
+  useEffect(() => {
+    fetchCompletedWorkouts();
+  }, []);
+
+  // Fetch completed workouts from API
+  const fetchCompletedWorkouts = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await api.get('/workout-complete');
+      
+      if (response.data && response.data.success) {
+        setCompletedWorkouts(response.data.completedWorkouts || []);
+        
+        // Update stats based on completed workouts
+        updateDashboardStats(response.data.completedWorkouts || []);
+      }
+    } catch (err: any) {
+      console.error('Error fetching completed workouts:', err);
+      setError('Failed to load workout data. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Update dashboard stats based on completed workouts
+  const updateDashboardStats = (workouts: WorkoutComplete[]) => {
+    // Calculate stats based on completed workouts
+    const totalWorkouts = workouts.length;
+    
+    // Estimate calories burned (rough estimate - 10 calories per minute)
+    const totalDuration = workouts.reduce((total, workout) => total + (workout.totalDuration || 0), 0);
+    const estimatedCalories = Math.round(totalDuration * 10);
+    
+    // Count unique days with completed workouts
+    const uniqueDays = new Set(
+      workouts.map(workout => new Date(workout.completedAt).toDateString())
+    ).size;
+    
+    // Calculate a fitness score (just a fun metric)
+    // Based on number of workouts, consistency, and total duration
+    const fitnessScore = Math.min(100, Math.round(
+      (totalWorkouts * 5) + (uniqueDays * 3) + (totalDuration / 60)
+    ));
+    
+    // Update stats
+    setDashboardStats([
+      { name: 'Workouts Completed', value: totalWorkouts.toString(), icon: CheckCircleIcon, color: 'bg-emerald-100 text-emerald-600' },
+      { name: 'Calories Burned', value: estimatedCalories.toLocaleString(), icon: FireIconSolid, color: 'bg-orange-100 text-orange-600' },
+      { name: 'Active Days', value: uniqueDays.toString(), icon: CalendarIcon, color: 'bg-blue-100 text-blue-600' },
+      { name: 'Fitness Score', value: fitnessScore.toString(), icon: TrophyIcon, color: 'bg-purple-100 text-purple-600' },
+    ]);
+  };
+
+  // Format date for display
+  const formatDate = (dateString: string): string => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+  };
 
   const navigationItems = [
     { name: 'Dashboard', id: 'overview', icon: ChartBarIcon },
@@ -232,7 +312,7 @@ const DashboardPage = () => {
                 Your Fitness Stats
               </h3>
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-                {stats.map((stat) => (
+                {dashboardStats.map((stat) => (
                   <div
                     key={stat.name}
                     className="bg-white overflow-hidden shadow-md rounded-xl hover:shadow-lg transition-shadow border border-gray-100"
@@ -262,39 +342,51 @@ const DashboardPage = () => {
                 Recent Activity
               </h3>
               <div className="bg-white shadow-md rounded-xl overflow-hidden border border-gray-100">
-                <ul className="divide-y divide-gray-100">
-                  {[1, 2, 3].map((item) => (
-                    <li key={item} className="hover:bg-gray-50 transition-colors">
-                      <div className="px-6 py-5">
-                        <div className="flex items-center justify-between">
-                          <p className="text-base font-medium text-indigo-600 truncate flex items-center">
-                            <CheckCircleIcon className="h-5 w-5 mr-2 text-emerald-500" />
-                            Completed Workout #{item}
-                          </p>
-                          <div className="ml-2 flex-shrink-0 flex">
-                            <p className="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-emerald-100 text-emerald-800">
-                              Completed
+                {loading ? (
+                  <div className="flex justify-center items-center py-12">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+                  </div>
+                ) : error ? (
+                  <div className="p-6 text-center text-red-500">{error}</div>
+                ) : completedWorkouts.length === 0 ? (
+                  <div className="p-6 text-center text-gray-500">
+                    No completed workouts yet. Start a workout to track your progress!
+                  </div>
+                ) : (
+                  <ul className="divide-y divide-gray-100">
+                    {completedWorkouts.slice(0, 5).map((workout, index) => (
+                      <li key={workout._id} className="hover:bg-gray-50 transition-colors">
+                        <div className="px-6 py-5">
+                          <div className="flex items-center justify-between">
+                            <p className="text-base font-medium text-indigo-600 truncate flex items-center">
+                              <CheckCircleIcon className="h-5 w-5 mr-2 text-emerald-500" />
+                              {workout.focus} Workout
                             </p>
+                            <div className="ml-2 flex-shrink-0 flex">
+                              <p className="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-emerald-100 text-emerald-800">
+                                Completed
+                              </p>
+                            </div>
+                          </div>
+                          <div className="mt-2 sm:flex sm:justify-between">
+                            <div className="sm:flex">
+                              <p className="flex items-center text-sm text-gray-600">
+                                <BoltIcon className="flex-shrink-0 mr-1.5 h-5 w-5 text-indigo-500" />
+                                {Math.floor(workout.totalDuration / 60) || 0} min {workout.day.charAt(0).toUpperCase() + workout.day.slice(1)} Workout
+                              </p>
+                            </div>
+                            <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
+                              <CalendarIcon className="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" />
+                              <p>
+                                Completed on <time dateTime={workout.completedAt} className="font-medium">{formatDate(workout.completedAt)}</time>
+                              </p>
+                            </div>
                           </div>
                         </div>
-                        <div className="mt-2 sm:flex sm:justify-between">
-                          <div className="sm:flex">
-                            <p className="flex items-center text-sm text-gray-600">
-                              <BoltIcon className="flex-shrink-0 mr-1.5 h-5 w-5 text-indigo-500" />
-                              30 min Full Body Workout
-                            </p>
-                          </div>
-                          <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
-                            <CalendarIcon className="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" />
-                            <p>
-                              Completed on <time dateTime="2023-01-01" className="font-medium">January 1, 2023</time>
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             </div>
           </div>
