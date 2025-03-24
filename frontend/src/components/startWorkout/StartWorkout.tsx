@@ -292,6 +292,7 @@ const StartWorkout: React.FC<StartWorkoutProps> = ({ setActiveTab }) => {
     }
     
     if (currentExerciseIndex < activeWorkout.exercises.length - 1) {
+      // Move to next exercise
       setCurrentExerciseIndex(currentExerciseIndex + 1);
       resetExerciseTimer();
       setWorkoutStage('countdown');
@@ -300,9 +301,6 @@ const StartWorkout: React.FC<StartWorkoutProps> = ({ setActiveTab }) => {
     } else {
       // All exercises completed
       setWorkoutStage('completed');
-      if (soundEnabled && exerciseCompleteRef.current) {
-        exerciseCompleteRef.current.play().catch(err => console.error('Error playing sound:', err));
-      }
     }
   };
 
@@ -312,17 +310,47 @@ const StartWorkout: React.FC<StartWorkoutProps> = ({ setActiveTab }) => {
       clearInterval(countdownInterval);
     }
     
+    // Start playing the countdown sound at regular intervals
+    if (soundEnabled && countdownEndRef.current) {
+      // Reset and play sound for countdown
+      countdownEndRef.current.pause();
+      countdownEndRef.current.currentTime = 0;
+      
+      // Play sound every second of the countdown
+      const playTick = () => {
+        countdownEndRef.current?.play().catch(err => console.error('Error playing sound:', err));
+      };
+      
+      // Play first tick immediately
+      playTick();
+    }
+    
     const interval = window.setInterval(() => {
       setCountdownTimer(prev => {
         if (prev <= 1) {
           clearInterval(interval);
-          setWorkoutStage('exercise');
-          if (soundEnabled && countdownEndRef.current) {
-            countdownEndRef.current.play().catch(err => console.error('Error playing sound:', err));
-          }
           setCountdownInterval(null); // Clear the interval state
+          
+          // Stop any playing sound
+          if (countdownEndRef.current) {
+            countdownEndRef.current.pause();
+            countdownEndRef.current.currentTime = 0;
+          }
+          
+          // Proceed to exercise phase
+          setWorkoutStage('exercise');
+          setExerciseTimerRunning(true);
+          
           return 0;
         }
+        
+        // Play tick sound on each countdown number
+        if (soundEnabled && countdownEndRef.current && prev > 1) {
+          countdownEndRef.current.pause();
+          countdownEndRef.current.currentTime = 0;
+          countdownEndRef.current.play().catch(err => console.error('Error playing sound:', err));
+        }
+        
         return prev - 1;
       });
     }, 1000);
@@ -343,7 +371,7 @@ const StartWorkout: React.FC<StartWorkoutProps> = ({ setActiveTab }) => {
         {/* Header Section */}
         <div className="bg-gradient-to-r from-indigo-600 to-blue-500 rounded-2xl shadow-lg p-6 text-white">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
+      <div>
               <h1 className="text-2xl md:text-3xl font-bold mb-2">Your Weekly Workout Plan</h1>
               <p className="text-indigo-100 text-sm md:text-base">
                 Stay consistent with your training to reach your fitness goals
@@ -443,26 +471,26 @@ const StartWorkout: React.FC<StartWorkoutProps> = ({ setActiveTab }) => {
         <div className="bg-white rounded-2xl shadow-lg p-6">
           <h2 className="text-xl font-bold text-gray-900 mb-6">Weekly Schedule</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {Object.entries(workoutPlan.weeklyPlan).map(([day, dayPlan]) => {
-              const isCompleted = dayPlan.isCompleted;
-              const isSelected = selectedDay === day;
-              const isRestDay = dayPlan.focus.toLowerCase().includes('rest');
+          {Object.entries(workoutPlan.weeklyPlan).map(([day, dayPlan]) => {
+            const isCompleted = dayPlan.isCompleted;
+            const isSelected = selectedDay === day;
+            const isRestDay = dayPlan.focus.toLowerCase().includes('rest');
               const daysOfWeek = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
               const todayIndex = new Date().getDay();
               const today = daysOfWeek[todayIndex];
               const isToday = day === today;
               const isPast = daysOfWeek.indexOf(day) < todayIndex && !isToday;
-              
-              return (
-                <div
-                  key={day}
+            
+            return (
+              <div
+                key={day}
                   onClick={() => isToday && !isRestDay && !isCompleted ? setSelectedDay(day) : null}
                   className={`relative rounded-xl border-2 transition-all duration-200 overflow-hidden ${
-                    isSelected 
+                  isSelected 
                       ? 'ring-4 ring-indigo-300 ring-offset-2 border-indigo-400 shadow-lg' 
-                      : isCompleted
+                    : isCompleted
                         ? 'border-green-300 bg-green-50'
-                        : isRestDay
+                      : isRestDay
                           ? 'border-gray-200 bg-gray-50'
                           : isToday
                             ? 'border-blue-400 bg-blue-50 hover:shadow-lg cursor-pointer transform hover:scale-105'
@@ -497,7 +525,7 @@ const StartWorkout: React.FC<StartWorkoutProps> = ({ setActiveTab }) => {
                                   : 'bg-indigo-500 text-white'
                         }`}>
                           {day.charAt(0).toUpperCase()}
-                        </div>
+                    </div>
                         <div>
                           <div className="font-bold text-gray-900">{day.charAt(0).toUpperCase() + day.slice(1)}</div>
                           <div className="text-xs text-gray-500">Day {Object.keys(workoutPlan.weeklyPlan).indexOf(day) + 1}</div>
@@ -506,20 +534,20 @@ const StartWorkout: React.FC<StartWorkoutProps> = ({ setActiveTab }) => {
                       {isToday && (
                         <div className="bg-yellow-300 text-yellow-800 text-xs font-bold uppercase tracking-wide px-2 py-1 rounded-full">
                           Today
-                        </div>
-                      )}
                     </div>
-                  </div>
-
+                  )}
+                    </div>
+                </div>
+                
                   {/* Workout details */}
                   <div className="p-4">
                     <div className="mb-3">
                       <div className="text-lg font-semibold text-gray-900">{dayPlan.focus}</div>
-                      {!isRestDay && (
+                {!isRestDay && (
                         <div className="text-sm text-gray-600 mt-1">
                           {dayPlan.exercises.length} exercises • {dayPlan.duration}
-                        </div>
-                      )}
+                  </div>
+                )}
                     </div>
 
                     {/* Exercise list preview */}
@@ -563,18 +591,18 @@ const StartWorkout: React.FC<StartWorkoutProps> = ({ setActiveTab }) => {
                       )}
                       
                       {isSelected && isToday && !isRestDay && !isCompleted && (
-                        <button
+                  <button
                           type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            startNewWorkout();
-                          }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      startNewWorkout();
+                    }}
                           className="bg-indigo-600 text-white text-sm font-medium px-3 py-2 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center"
-                        >
+                  >
                           <PlayIcon className="h-4 w-4 mr-1" />
                           Start
-                        </button>
-                      )}
+                  </button>
+                )}
                     </div>
                   </div>
                   
@@ -586,9 +614,9 @@ const StartWorkout: React.FC<StartWorkoutProps> = ({ setActiveTab }) => {
                         ? 'bg-blue-500' 
                         : 'bg-transparent'
                   }`}></div>
-                </div>
-              );
-            })}
+              </div>
+            );
+          })}
           </div>
         </div>
         
@@ -666,7 +694,7 @@ const StartWorkout: React.FC<StartWorkoutProps> = ({ setActiveTab }) => {
           {/* Header with day and timer */}
           <div className="bg-gradient-to-r from-indigo-600 to-blue-500 text-white p-3 sm:p-4">
             <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center">
+            <div className="flex items-center">
                 <button
                   onClick={() => {
                     setActiveWorkout(null);
@@ -685,22 +713,22 @@ const StartWorkout: React.FC<StartWorkoutProps> = ({ setActiveTab }) => {
                     <ClockIcon className="h-4 w-4 sm:h-5 sm:w-5" />
                   </div>
                   <span className="text-lg sm:text-xl font-bold">
-                    {formatTime(timer)}
-                  </span>
+                {formatTime(timer)}
+              </span>
                 </div>
-              </div>
-              <div className="flex items-center space-x-2 sm:space-x-3">
-                <button
-                  onClick={toggleSound}
-                  className={`p-1.5 sm:p-2 rounded-full ${soundEnabled ? 'bg-white/20' : 'bg-white/10'}`}
-                  title={soundEnabled ? "Sound On" : "Sound Off"}
-                >
-                  {soundEnabled ? (
-                    <BoltIcon className="h-4 w-4 sm:h-5 sm:w-5" />
-                  ) : (
-                    <XMarkIcon className="h-4 w-4 sm:h-5 sm:w-5" />
-                  )}
-                </button>
+            </div>
+            <div className="flex items-center space-x-2 sm:space-x-3">
+              <button
+                onClick={toggleSound}
+                className={`p-1.5 sm:p-2 rounded-full ${soundEnabled ? 'bg-white/20' : 'bg-white/10'}`}
+                title={soundEnabled ? "Sound On" : "Sound Off"}
+              >
+                {soundEnabled ? (
+                  <BoltIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+                ) : (
+                  <XMarkIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+                )}
+              </button>
               </div>
             </div>
             
@@ -992,7 +1020,15 @@ const StartWorkout: React.FC<StartWorkoutProps> = ({ setActiveTab }) => {
               clearInterval(countdownInterval);
               setCountdownInterval(null);
             }
+            
+            // Stop countdown sound if playing
+            if (countdownEndRef.current) {
+              countdownEndRef.current.pause();
+              countdownEndRef.current.currentTime = 0;
+            }
+            
             setWorkoutStage('exercise');
+            setExerciseTimerRunning(true);
           }}
           className="py-2 sm:py-3 px-4 sm:px-6 bg-indigo-600 text-white text-sm sm:text-base font-medium rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
         >
@@ -1091,15 +1127,15 @@ const StartWorkout: React.FC<StartWorkoutProps> = ({ setActiveTab }) => {
       ) : (
         <>
           {/* Audio elements */}
-          <audio ref={countdownEndRef} src="/sounds/countdown-end.mp3" />
-          <audio ref={exerciseCompleteRef} src="/sounds/exercise-complete.mp3" />
+          <audio ref={countdownEndRef} src="/sounds/countdown-end.mp3" preload="auto" />
+          <audio ref={exerciseCompleteRef} src="/sounds/exercise-complete1.mp3" preload="auto" />
           
           {activeWorkout && !showWorkoutSelection ? (
             renderActiveWorkout()
           ) : (
             <>
               {workoutPlan ? (
-                renderWorkoutSelection()
+            renderWorkoutSelection()
               ) : (
                 <div className="text-center py-12">
                   <div className="mx-auto w-24 h-24 bg-indigo-100 rounded-full flex items-center justify-center mb-6">
@@ -1149,3 +1185,4 @@ const StartWorkout: React.FC<StartWorkoutProps> = ({ setActiveTab }) => {
 };
 
 export default StartWorkout;
+
