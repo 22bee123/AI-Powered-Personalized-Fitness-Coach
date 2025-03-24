@@ -12,6 +12,7 @@ import {
   CalendarIcon
 } from '@heroicons/react/24/outline';
 import { BoltIcon } from '@heroicons/react/24/solid';
+import StartWorkoutComplete from './StartWorkoutComplete';
 
 // Types
 interface Exercise {
@@ -159,16 +160,6 @@ const StartWorkout: React.FC<StartWorkoutProps> = ({ setActiveTab }) => {
     }
   };
 
-  // Fetch workout plan
-  const fetchWorkoutPlan = async () => {
-    try {
-      const response = await api.get('/workouts/latest');
-      setWorkoutPlan(response.data.workoutPlan);
-    } catch (err) {
-      console.error('Error fetching workout plan:', err);
-      setError('Failed to fetch workout plan. Please try again.');
-    }
-  };
 
   // Fetch active workout
   const fetchActiveWorkout = async () => {
@@ -371,18 +362,6 @@ const StartWorkout: React.FC<StartWorkoutProps> = ({ setActiveTab }) => {
     setCountdownInterval(interval);
   };
 
-  // Check if all workouts in the plan are completed
-  const allWorkoutsCompleted = (): boolean => {
-    if (!workoutPlan) return false;
-    
-    // Check if all non-rest days are completed
-    const nonRestDays = Object.values(workoutPlan.weeklyPlan).filter(
-      day => !day.focus.toLowerCase().includes('rest')
-    );
-    
-    return nonRestDays.every(day => day.isCompleted);
-  };
-
   // Render workout selection
   const renderWorkoutSelection = () => {
     if (!workoutPlan) return null;
@@ -390,30 +369,6 @@ const StartWorkout: React.FC<StartWorkoutProps> = ({ setActiveTab }) => {
     // Get today's day name
     const daysOfWeek = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
     const today = daysOfWeek[new Date().getDay()];
-    
-    // Check if all workouts are completed
-    if (allWorkoutsCompleted()) {
-      return (
-        <div className="text-center py-12">
-          <div className="mx-auto w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mb-6">
-            <CheckCircleIcon className="h-12 w-12 text-green-600" />
-          </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">All Workouts Completed!</h2>
-          <p className="text-gray-600 mb-6 max-w-md mx-auto">
-            Congratulations! You've completed all workouts in your current plan. Would you like to create a new workout plan?
-          </p>
-          <div className="flex flex-col sm:flex-row justify-center gap-4">
-            <button
-              type="button"
-              onClick={() => setActiveTab ? setActiveTab('workout-form') : null}
-              className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-            >
-              Create New Workout Plan
-            </button>
-          </div>
-        </div>
-      );
-    }
     
     return (
       <div className="space-y-8">
@@ -520,26 +475,26 @@ const StartWorkout: React.FC<StartWorkoutProps> = ({ setActiveTab }) => {
         <div className="bg-white rounded-2xl shadow-lg p-6">
           <h2 className="text-xl font-bold text-gray-900 mb-6">Weekly Schedule</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {Object.entries(workoutPlan.weeklyPlan).map(([day, dayPlan]) => {
-            const isCompleted = dayPlan.isCompleted;
-            const isSelected = selectedDay === day;
-            const isRestDay = dayPlan.focus.toLowerCase().includes('rest');
+            {Object.entries(workoutPlan.weeklyPlan).map(([day, dayPlan]) => {
+              const isCompleted = dayPlan.isCompleted;
+              const isSelected = selectedDay === day;
+              const isRestDay = dayPlan.focus.toLowerCase().includes('rest');
               const daysOfWeek = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
               const todayIndex = new Date().getDay();
               const today = daysOfWeek[todayIndex];
               const isToday = day === today;
               const isPast = daysOfWeek.indexOf(day) < todayIndex && !isToday;
-            
-            return (
-              <div
-                key={day}
+              
+              return (
+                <div
+                  key={day}
                   onClick={() => isToday && !isRestDay && !isCompleted ? setSelectedDay(day) : null}
                   className={`relative rounded-xl border-2 transition-all duration-200 overflow-hidden ${
-                  isSelected 
+                    isSelected 
                       ? 'ring-4 ring-indigo-300 ring-offset-2 border-indigo-400 shadow-lg' 
-                    : isCompleted
+                      : isCompleted
                         ? 'border-green-300 bg-green-50'
-                      : isRestDay
+                        : isRestDay
                           ? 'border-gray-200 bg-gray-50'
                           : isToday
                             ? 'border-blue-400 bg-blue-50 hover:shadow-lg cursor-pointer transform hover:scale-105'
@@ -574,7 +529,7 @@ const StartWorkout: React.FC<StartWorkoutProps> = ({ setActiveTab }) => {
                                   : 'bg-indigo-500 text-white'
                         }`}>
                           {day.charAt(0).toUpperCase()}
-                    </div>
+                        </div>
                         <div>
                           <div className="font-bold text-gray-900">{day.charAt(0).toUpperCase() + day.slice(1)}</div>
                           <div className="text-xs text-gray-500">Day {Object.keys(workoutPlan.weeklyPlan).indexOf(day) + 1}</div>
@@ -583,20 +538,20 @@ const StartWorkout: React.FC<StartWorkoutProps> = ({ setActiveTab }) => {
                       {isToday && (
                         <div className="bg-yellow-300 text-yellow-800 text-xs font-bold uppercase tracking-wide px-2 py-1 rounded-full">
                           Today
+                        </div>
+                      )}
                     </div>
-                  )}
-                    </div>
-                </div>
-                
+                  </div>
+
                   {/* Workout details */}
                   <div className="p-4">
                     <div className="mb-3">
                       <div className="text-lg font-semibold text-gray-900">{dayPlan.focus}</div>
-                {!isRestDay && (
+                      {!isRestDay && (
                         <div className="text-sm text-gray-600 mt-1">
                           {dayPlan.exercises.length} exercises • {dayPlan.duration}
-                  </div>
-                )}
+                        </div>
+                      )}
                     </div>
 
                     {/* Exercise list preview */}
@@ -640,18 +595,18 @@ const StartWorkout: React.FC<StartWorkoutProps> = ({ setActiveTab }) => {
                       )}
                       
                       {isSelected && isToday && !isRestDay && !isCompleted && (
-                  <button
+                        <button
                           type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      startNewWorkout();
-                    }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            startNewWorkout();
+                          }}
                           className="bg-indigo-600 text-white text-sm font-medium px-3 py-2 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center"
-                  >
+                        >
                           <PlayIcon className="h-4 w-4 mr-1" />
                           Start
-                  </button>
-                )}
+                        </button>
+                      )}
                     </div>
                   </div>
                   
@@ -663,69 +618,14 @@ const StartWorkout: React.FC<StartWorkoutProps> = ({ setActiveTab }) => {
                         ? 'bg-blue-500' 
                         : 'bg-transparent'
                   }`}></div>
-              </div>
-            );
-          })}
+                </div>
+              );
+            })}
           </div>
         </div>
         
         {/* Stats cards */}
-        <div className="bg-white rounded-2xl shadow-lg p-6">
-          <h3 className="text-xl font-bold text-gray-900 mb-6">Weekly Summary</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            <div className="bg-gradient-to-br from-indigo-50 to-blue-50 p-6 rounded-xl border border-indigo-100">
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-indigo-600 font-medium">Total Workouts</div>
-                <div className="bg-indigo-100 p-2 rounded-full">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
-                </div>
-              </div>
-              <div className="text-3xl font-bold text-gray-900">
-                {Object.values(workoutPlan.weeklyPlan).filter(day => !day.focus.toLowerCase().includes('rest')).length}
-              </div>
-            </div>
-            
-            <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-6 rounded-xl border border-green-100">
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-green-600 font-medium">Completed</div>
-                <div className="bg-green-100 p-2 rounded-full">
-                  <CheckCircleIcon className="h-5 w-5 text-green-600" />
-                </div>
-              </div>
-              <div className="text-3xl font-bold text-gray-900">
-                {Object.values(workoutPlan.weeklyPlan).filter(day => day.isCompleted).length}
-              </div>
-            </div>
-            
-            <div className="bg-gradient-to-br from-gray-50 to-slate-50 p-6 rounded-xl border border-gray-100">
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-gray-600 font-medium">Rest Days</div>
-                <div className="bg-gray-100 p-2 rounded-full">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                  </svg>
-                </div>
-              </div>
-              <div className="text-3xl font-bold text-gray-900">
-                {Object.values(workoutPlan.weeklyPlan).filter(day => day.focus.toLowerCase().includes('rest')).length}
-              </div>
-            </div>
-            
-            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-100">
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-blue-600 font-medium">Remaining</div>
-                <div className="bg-blue-100 p-2 rounded-full">
-                  <ClockIcon className="h-5 w-5 text-blue-600" />
-                </div>
-              </div>
-              <div className="text-3xl font-bold text-gray-900">
-                {Object.values(workoutPlan.weeklyPlan).filter(day => !day.isCompleted && !day.focus.toLowerCase().includes('rest')).length}
-              </div>
-            </div>
-          </div>
-        </div>
+        <StartWorkoutComplete workoutPlan={workoutPlan} setActiveTab={setActiveTab} />
       </div>
     );
   };
