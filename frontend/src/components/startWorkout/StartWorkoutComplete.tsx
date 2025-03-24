@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   CheckCircleIcon,
   ClockIcon
 } from '@heroicons/react/24/outline';
+import api from '../../utils/api';
 
 interface WorkoutPlan {
   _id: string;
@@ -25,12 +26,51 @@ interface WorkoutPlan {
   createdAt: string;
 }
 
+interface WorkoutStats {
+  totalWorkoutDays: number;
+  completedDays: number;
+  completionPercentage: number;
+  totalDuration: number;
+  restDays: number;
+  remainingDays: number;
+}
+
 interface StartWorkoutCompleteProps {
   workoutPlan: WorkoutPlan;
   setActiveTab?: (tab: string) => void;
 }
 
 const StartWorkoutComplete: React.FC<StartWorkoutCompleteProps> = ({ workoutPlan, setActiveTab }) => {
+  const [stats, setStats] = useState<WorkoutStats | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch workout stats when the component mounts or workoutPlan changes
+  useEffect(() => {
+    if (workoutPlan && workoutPlan._id) {
+      fetchWorkoutStats(workoutPlan._id);
+    }
+  }, [workoutPlan]);
+
+  // Fetch stats from the API
+  const fetchWorkoutStats = async (workoutPlanId: string) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await api.get(`/workout-complete/stats/${workoutPlanId}`);
+      
+      if (response.data && response.data.success) {
+        setStats(response.data.stats);
+      }
+    } catch (err) {
+      console.error('Error fetching workout stats:', err);
+      // Don't set error - fallback to calculating from workoutPlan
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Check if all workouts in the plan are completed
   const allWorkoutsCompleted = (): boolean => {
     if (!workoutPlan) return false;
@@ -42,6 +82,44 @@ const StartWorkoutComplete: React.FC<StartWorkoutCompleteProps> = ({ workoutPlan
     
     return nonRestDays.every(day => day.isCompleted);
   };
+
+  // Get stats from the local workoutPlan if API stats are not available
+  const getLocalStats = (): WorkoutStats => {
+    if (!workoutPlan) {
+      return {
+        totalWorkoutDays: 0,
+        completedDays: 0,
+        completionPercentage: 0,
+        totalDuration: 0,
+        restDays: 0,
+        remainingDays: 0
+      };
+    }
+    
+    const totalWorkoutDays = Object.values(workoutPlan.weeklyPlan).filter(
+      day => !day.focus.toLowerCase().includes('rest')
+    ).length;
+    
+    const completedDays = Object.values(workoutPlan.weeklyPlan).filter(
+      day => day.isCompleted
+    ).length;
+    
+    const restDays = Object.values(workoutPlan.weeklyPlan).filter(
+      day => day.focus.toLowerCase().includes('rest')
+    ).length;
+    
+    return {
+      totalWorkoutDays,
+      completedDays,
+      completionPercentage: (completedDays / totalWorkoutDays) * 100,
+      totalDuration: 0, // We don't have this data locally
+      restDays,
+      remainingDays: totalWorkoutDays - completedDays
+    };
+  };
+
+  // Use API stats if available, otherwise fall back to local calculation
+  const displayStats = stats || getLocalStats();
 
   // If all workouts are completed, show a message
   if (allWorkoutsCompleted()) {
@@ -82,7 +160,7 @@ const StartWorkoutComplete: React.FC<StartWorkoutCompleteProps> = ({ workoutPlan
             </div>
           </div>
           <div className="text-3xl font-bold text-gray-900">
-            {Object.values(workoutPlan.weeklyPlan).filter(day => !day.focus.toLowerCase().includes('rest')).length}
+            {displayStats.totalWorkoutDays}
           </div>
         </div>
         
@@ -94,7 +172,7 @@ const StartWorkoutComplete: React.FC<StartWorkoutCompleteProps> = ({ workoutPlan
             </div>
           </div>
           <div className="text-3xl font-bold text-gray-900">
-            {Object.values(workoutPlan.weeklyPlan).filter(day => day.isCompleted).length}
+            {displayStats.completedDays}
           </div>
         </div>
         
@@ -108,7 +186,7 @@ const StartWorkoutComplete: React.FC<StartWorkoutCompleteProps> = ({ workoutPlan
             </div>
           </div>
           <div className="text-3xl font-bold text-gray-900">
-            {Object.values(workoutPlan.weeklyPlan).filter(day => day.focus.toLowerCase().includes('rest')).length}
+            {displayStats.restDays}
           </div>
         </div>
         
@@ -120,7 +198,7 @@ const StartWorkoutComplete: React.FC<StartWorkoutCompleteProps> = ({ workoutPlan
             </div>
           </div>
           <div className="text-3xl font-bold text-gray-900">
-            {Object.values(workoutPlan.weeklyPlan).filter(day => !day.isCompleted && !day.focus.toLowerCase().includes('rest')).length}
+            {displayStats.remainingDays}
           </div>
         </div>
       </div>

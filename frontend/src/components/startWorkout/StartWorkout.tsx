@@ -1026,13 +1026,23 @@ const StartWorkout: React.FC<StartWorkoutProps> = ({ setActiveTab }) => {
 
   // Complete the workout
   const completeWorkout = async () => {
-    if (!activeWorkout) return;
+    if (!activeWorkout || !workoutPlan || !selectedDay) return;
     
     try {
       setLoading(true);
       setError(null);
       
+      // First complete the active workout
       await api.put(`/start-workout/complete/${activeWorkout._id}`);
+
+      // Then create a workout completion record
+      await api.post('/workout-complete', {
+        workoutPlanId: workoutPlan._id,
+        day: selectedDay,
+        focus: workoutPlan.weeklyPlan[selectedDay].focus,
+        totalDuration: timer,
+        exercisesCompleted: activeWorkout.exercises.length
+      });
       
       stopTimer();
       setActiveWorkout(null);
@@ -1048,6 +1058,20 @@ const StartWorkout: React.FC<StartWorkoutProps> = ({ setActiveTab }) => {
         if (workoutPlan && selectedDay) {
           const days = Object.keys(workoutPlan.weeklyPlan);
           const currentDayIndex = days.indexOf(selectedDay);
+          
+          // Update the completed status in the local state
+          if (workoutPlan) {
+            setWorkoutPlan(prevPlan => {
+              if (!prevPlan) return null;
+              
+              const updatedPlan = {...prevPlan};
+              if (selectedDay && updatedPlan.weeklyPlan[selectedDay]) {
+                updatedPlan.weeklyPlan[selectedDay].isCompleted = true;
+              }
+              return updatedPlan;
+            });
+          }
+          
           if (currentDayIndex < days.length - 1) {
             // Move to the next day
             setSelectedDay(days[currentDayIndex + 1]);
