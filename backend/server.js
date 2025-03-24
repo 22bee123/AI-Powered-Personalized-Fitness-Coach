@@ -15,6 +15,7 @@ import workoutRoutes from "./routes/workout.route.js";
 import coachAIRoutes from "./routes/CoachAI.route.js";
 import nutritionRoutes from "./routes/nutrition.route.js";
 import startWorkoutRoutes from "./routes/startWorkout.route.js";
+import workoutCompleteRoutes from "./routes/workoutComplete.routes.js";
 
 const app = express();
 
@@ -58,6 +59,7 @@ app.use('/api/workouts', workoutRoutes);
 app.use('/api/coach', coachAIRoutes);
 app.use('/api/nutrition', nutritionRoutes);
 app.use('/api/start-workout', startWorkoutRoutes);
+app.use('/api/workout-complete', workoutCompleteRoutes);
 
 // Default route
 app.get('/', (req, res) => {
