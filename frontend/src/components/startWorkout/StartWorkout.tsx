@@ -124,22 +124,35 @@ const StartWorkout: React.FC<StartWorkoutProps> = ({ setActiveTab }) => {
     setError(null);
     try {
       const response = await api.get('/workouts/latest');
-      setWorkoutPlan(response.data.workoutPlan);
       
-      // Automatically select today's workout day
-      if (response.data.workoutPlan) {
-        const daysOfWeek = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-        const today = daysOfWeek[new Date().getDay()];
+      if (response.data && response.data.workoutPlan) {
+        setWorkoutPlan(response.data.workoutPlan);
         
-        // Check if today's workout exists in the plan
-        if (response.data.workoutPlan.weeklyPlan[today]) {
-          setSelectedDay(today);
+        // Automatically select today's workout day
+        if (response.data.workoutPlan) {
+          const daysOfWeek = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+          const today = daysOfWeek[new Date().getDay()];
+          
+          // Check if today's workout exists in the plan
+          if (response.data.workoutPlan.weeklyPlan[today]) {
+            setSelectedDay(today);
+          }
         }
+      } else {
+        // No workout plan found, but this is not an error
+        setWorkoutPlan(null);
       }
     } catch (err: any) {
+      // Don't show error for 404 (no workout plan) or when all workouts are completed
       if (err.response?.status !== 404) {
-        setError('Failed to load workout plan. Please try again.');
         console.error('Error fetching workout plan:', err);
+        // Only set error if we're not in the workout completion page
+        if (workoutStage !== 'completed') {
+          setError('Failed to load workout plan. Please try again.');
+        }
+      } else {
+        // 404 means no workout plan found, set workoutPlan to null
+        setWorkoutPlan(null);
       }
     } finally {
       setLoading(false);
@@ -149,8 +162,8 @@ const StartWorkout: React.FC<StartWorkoutProps> = ({ setActiveTab }) => {
   // Fetch workout plan
   const fetchWorkoutPlan = async () => {
     try {
-      const response = await api.get('/workout-plans/latest');
-      setWorkoutPlan(response.data);
+      const response = await api.get('/workouts/latest');
+      setWorkoutPlan(response.data.workoutPlan);
     } catch (err) {
       console.error('Error fetching workout plan:', err);
       setError('Failed to fetch workout plan. Please try again.');
@@ -358,6 +371,18 @@ const StartWorkout: React.FC<StartWorkoutProps> = ({ setActiveTab }) => {
     setCountdownInterval(interval);
   };
 
+  // Check if all workouts in the plan are completed
+  const allWorkoutsCompleted = (): boolean => {
+    if (!workoutPlan) return false;
+    
+    // Check if all non-rest days are completed
+    const nonRestDays = Object.values(workoutPlan.weeklyPlan).filter(
+      day => !day.focus.toLowerCase().includes('rest')
+    );
+    
+    return nonRestDays.every(day => day.isCompleted);
+  };
+
   // Render workout selection
   const renderWorkoutSelection = () => {
     if (!workoutPlan) return null;
@@ -366,12 +391,36 @@ const StartWorkout: React.FC<StartWorkoutProps> = ({ setActiveTab }) => {
     const daysOfWeek = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
     const today = daysOfWeek[new Date().getDay()];
     
+    // Check if all workouts are completed
+    if (allWorkoutsCompleted()) {
+      return (
+        <div className="text-center py-12">
+          <div className="mx-auto w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mb-6">
+            <CheckCircleIcon className="h-12 w-12 text-green-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">All Workouts Completed!</h2>
+          <p className="text-gray-600 mb-6 max-w-md mx-auto">
+            Congratulations! You've completed all workouts in your current plan. Would you like to create a new workout plan?
+          </p>
+          <div className="flex flex-col sm:flex-row justify-center gap-4">
+            <button
+              type="button"
+              onClick={() => setActiveTab ? setActiveTab('workout-form') : null}
+              className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              Create New Workout Plan
+            </button>
+          </div>
+        </div>
+      );
+    }
+    
     return (
       <div className="space-y-8">
         {/* Header Section */}
         <div className="bg-gradient-to-r from-indigo-600 to-blue-500 rounded-2xl shadow-lg p-6 text-white">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-      <div>
+            <div>
               <h1 className="text-2xl md:text-3xl font-bold mb-2">Your Weekly Workout Plan</h1>
               <p className="text-indigo-100 text-sm md:text-base">
                 Stay consistent with your training to reach your fitness goals
@@ -1081,6 +1130,7 @@ const StartWorkout: React.FC<StartWorkoutProps> = ({ setActiveTab }) => {
     
     try {
       setLoading(true);
+      setError(null);
       
       await api.put(`/start-workout/complete/${activeWorkout._id}`);
       
@@ -1089,23 +1139,31 @@ const StartWorkout: React.FC<StartWorkoutProps> = ({ setActiveTab }) => {
       setCurrentExerciseIndex(0);
       setWorkoutStage('countdown');
       setTimer(0);
-      setError(null);
       
       // Refresh workout plan to show updated completion status
-      await fetchWorkoutPlan();
-      
-      // Move to the next day in the workout plan
-      if (workoutPlan && selectedDay) {
-        const days = Object.keys(workoutPlan.weeklyPlan);
-        const currentDayIndex = days.indexOf(selectedDay);
-        if (currentDayIndex < days.length - 1) {
-          // Move to the next day
-          setSelectedDay(days[currentDayIndex + 1]);
+      try {
+        await fetchLatestWorkoutPlan();
+        
+        // Move to the next day in the workout plan
+        if (workoutPlan && selectedDay) {
+          const days = Object.keys(workoutPlan.weeklyPlan);
+          const currentDayIndex = days.indexOf(selectedDay);
+          if (currentDayIndex < days.length - 1) {
+            // Move to the next day
+            setSelectedDay(days[currentDayIndex + 1]);
+          }
         }
+      } catch (planErr) {
+        console.error('Error refreshing workout plan after completion:', planErr);
+        // Continue with the flow even if refreshing the plan fails
       }
+      
+      setShowWorkoutSelection(true);
     } catch (err) {
       console.error('Error completing workout:', err);
-      setError('Failed to complete workout. Please try again.');
+      // Don't show error message on completion screen
+      // Just return to workout selection
+      setShowWorkoutSelection(true);
     } finally {
       setLoading(false);
     }
@@ -1114,7 +1172,7 @@ const StartWorkout: React.FC<StartWorkoutProps> = ({ setActiveTab }) => {
   // Main render
   return (
     <div className="bg-gray-50 p-6 rounded-lg">
-      {error && (
+      {error && !loading && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
           {error}
         </div>
@@ -1135,7 +1193,7 @@ const StartWorkout: React.FC<StartWorkoutProps> = ({ setActiveTab }) => {
           ) : (
             <>
               {workoutPlan ? (
-            renderWorkoutSelection()
+                renderWorkoutSelection()
               ) : (
                 <div className="text-center py-12">
                   <div className="mx-auto w-24 h-24 bg-indigo-100 rounded-full flex items-center justify-center mb-6">
