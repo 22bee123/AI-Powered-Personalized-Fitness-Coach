@@ -37,6 +37,17 @@ interface WorkoutComplete {
   exercisesCompleted: number;
 }
 
+// MET values for different exercise types
+const MET_VALUES = {
+  'strength': 6.0,      // Weight training (vigorous)
+  'cardio': 7.0,        // General cardio
+  'hiit': 8.0,         // High intensity interval training
+  'endurance': 7.5,    // Endurance training
+  'flexibility': 2.5,  // Stretching, yoga
+  'core': 4.0,         // Core exercises
+  'default': 5.0       // Default value if type not found
+};
+
 const DashboardPage = () => {
   const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
@@ -44,6 +55,7 @@ const DashboardPage = () => {
   const [completedWorkouts, setCompletedWorkouts] = useState<WorkoutComplete[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [userWeight, setUserWeight] = useState<number>(70); // Default weight in kg
   const [dashboardStats, setDashboardStats] = useState([
     { name: 'Workouts Completed', value: '0', icon: CheckCircleIcon, color: 'bg-emerald-100 text-emerald-600' },
     { name: 'Calories Burned', value: '0', icon: FireIconSolid, color: 'bg-orange-100 text-orange-600' },
@@ -85,30 +97,56 @@ const DashboardPage = () => {
     }
   };
 
+  // Calculate calories burned using MET formula
+  const calculateCaloriesBurned = (workout: WorkoutComplete): number => {
+    // Get MET value based on workout focus/type
+    const workoutType = workout.focus.toLowerCase();
+    let metValue = MET_VALUES.default;
+    
+    // Find the most appropriate MET value based on workout type
+    Object.entries(MET_VALUES).forEach(([type, value]) => {
+      if (workoutType.includes(type)) {
+        metValue = value;
+      }
+    });
+
+    // Calories = MET × weight (kg) × duration (hours)
+    // Duration is converted from seconds to hours
+    const durationInHours = (workout.totalDuration || 0) / 3600;
+    const caloriesBurned = metValue * userWeight * durationInHours;
+    
+    return Math.round(caloriesBurned);
+  };
+
   // Update dashboard stats based on completed workouts
   const updateDashboardStats = (workouts: WorkoutComplete[]) => {
     // Calculate stats based on completed workouts
     const totalWorkouts = workouts.length;
     
-    // Estimate calories burned (rough estimate - 10 calories per minute)
-    const totalDuration = workouts.reduce((total, workout) => total + (workout.totalDuration || 0), 0);
-    const estimatedCalories = Math.round(totalDuration * 10);
+    // Calculate total calories burned across all workouts
+    const totalCalories = workouts.reduce((total, workout) => {
+      return total + calculateCaloriesBurned(workout);
+    }, 0);
     
     // Count unique days with completed workouts
     const uniqueDays = new Set(
       workouts.map(workout => new Date(workout.completedAt).toDateString())
     ).size;
     
-    // Calculate a fitness score (just a fun metric)
-    // Based on number of workouts, consistency, and total duration
+    // Calculate a fitness score (improved formula)
+    // Now takes into account calories burned and workout intensity
+    const averageCaloriesPerWorkout = totalWorkouts > 0 ? totalCalories / totalWorkouts : 0;
+    const consistencyScore = (uniqueDays / 30) * 100; // Based on monthly activity
+    const intensityScore = Math.min(100, (averageCaloriesPerWorkout / 300) * 100); // 300 calories as baseline
+    
     const fitnessScore = Math.min(100, Math.round(
-      (totalWorkouts * 5) + (uniqueDays * 3) + (totalDuration / 60)
+      (totalWorkouts * 30 + consistencyScore * 40 + intensityScore * 30) / 100
     ));
     
     // Update stats
     setDashboardStats([
       { name: 'Workouts Completed', value: totalWorkouts.toString(), icon: CheckCircleIcon, color: 'bg-emerald-100 text-emerald-600' },
-      { name: 'Calories Burned', value: estimatedCalories.toLocaleString(), icon: FireIconSolid, color: 'bg-orange-100 text-orange-600' },
+      { name: 'Calories Burned', value: totalCalories.toLocaleString(), icon: FireIconSolid, color: 'bg-orange-100 text-orange-600' },
       { name: 'Active Days', value: uniqueDays.toString(), icon: CalendarIcon, color: 'bg-blue-100 text-blue-600' },
       { name: 'Fitness Score', value: fitnessScore.toString(), icon: TrophyIcon, color: 'bg-purple-100 text-purple-600' },
     ]);
