@@ -30,7 +30,11 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ onWorkoutGenerated, setLoadin
     focusAreas: [] as string[]
   });
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [success, setSuccess] = useState<{
+    workoutPlan: boolean;
+    nutritionPlan: boolean;
+    startWorkout: boolean;
+  } | null>(null);
   const [generating, setGenerating] = useState(false);
 
   // Handle input changes
@@ -69,15 +73,21 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ onWorkoutGenerated, setLoadin
     
     try {
       // Generate both workout and nutrition plans
-      const { workoutPlan } = await generatePlans(formData);
+      const { workoutPlan, nutritionPlan } = await generatePlans(formData);
       
       onWorkoutGenerated(workoutPlan);
-      setSuccess('Workout and nutrition plans generated successfully!');
       
-      // Clear success message after 3 seconds
+      // Set success states
+      setSuccess({
+        workoutPlan: true,
+        nutritionPlan: true,
+        startWorkout: true
+      });
+      
+      // Clear success message after 5 seconds
       setTimeout(() => {
         setSuccess(null);
-      }, 3000);
+      }, 5000);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to generate plans. Please try again.');
       console.error('Error generating plans:', err);
@@ -100,9 +110,27 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({ onWorkoutGenerated, setLoadin
       )}
       
       {success && (
-        <div className="mb-4 p-4 bg-green-50 rounded-md flex items-start">
-          <CheckCircleIcon className="h-5 w-5 text-green-500 mt-0.5 mr-2" />
-          <p className="text-sm text-green-700">{success}</p>
+        <div className="mb-4 p-4 bg-green-50 rounded-md">
+          <div className="flex items-start">
+            <CheckCircleIcon className="h-5 w-5 text-green-500 mt-0.5 mr-2" />
+            <div>
+              <p className="text-sm font-medium text-green-800 mb-2">Successfully created your personalized plans!</p>
+              <ul className="text-sm text-green-700 space-y-1">
+                <li className="flex items-center">
+                  <CheckCircleIcon className="h-4 w-4 text-green-500 mr-1" />
+                  Workout Plan
+                </li>
+                <li className="flex items-center">
+                  <CheckCircleIcon className="h-4 w-4 text-green-500 mr-1" />
+                  Nutrition Plan
+                </li>
+                <li className="flex items-center">
+                  <CheckCircleIcon className="h-4 w-4 text-green-500 mr-1" />
+                  Start Workout Session
+                </li>
+              </ul>
+            </div>
+          </div>
         </div>
       )}
       

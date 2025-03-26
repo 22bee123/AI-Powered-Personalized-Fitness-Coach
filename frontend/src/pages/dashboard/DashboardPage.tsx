@@ -45,6 +45,9 @@ const MET_VALUES = {
   'endurance': 7.5,    // Endurance training
   'flexibility': 2.5,  // Stretching, yoga
   'core': 4.0,         // Core exercises
+  'upper-body': 6.0,   // Upper body training
+  'lower-body': 6.5,   // Lower body training
+  'balance': 3.5,      // Balance training
   'default': 5.0       // Default value if type not found
 };
 
@@ -73,7 +76,30 @@ const DashboardPage = () => {
   // Fetch completed workouts when component mounts
   useEffect(() => {
     fetchCompletedWorkouts();
+    fetchUserWeight();
   }, []);
+
+  // Fetch user's weight from their profile or workout form data
+  const fetchUserWeight = async () => {
+    try {
+      // Try to get user profile data which should include weight
+      const response = await api.get('/user/profile');
+      
+      if (response.data && response.data.weight) {
+        // Convert weight to number if it's a string
+        const weight = typeof response.data.weight === 'string' 
+          ? parseFloat(response.data.weight)
+          : response.data.weight;
+          
+        if (!isNaN(weight) && weight > 0) {
+          setUserWeight(weight);
+        }
+      }
+    } catch (err) {
+      // If we can't get the weight, we'll use the default
+      console.error('Could not fetch user weight, using default', err);
+    }
+  };
 
   // Fetch completed workouts from API
   const fetchCompletedWorkouts = async () => {
@@ -101,20 +127,54 @@ const DashboardPage = () => {
   const calculateCaloriesBurned = (workout: WorkoutComplete): number => {
     // Get MET value based on workout focus/type
     const workoutType = workout.focus.toLowerCase();
-    let metValue = MET_VALUES.default;
     
-    // Find the most appropriate MET value based on workout type
-    Object.entries(MET_VALUES).forEach(([type, value]) => {
-      if (workoutType.includes(type)) {
-        metValue = value;
+    // Check multiple focus areas
+    const focusTerms = Object.keys(MET_VALUES);
+    const matchedTerms: string[] = [];
+    
+    // Find all matching terms in the workout focus
+    focusTerms.forEach(term => {
+      if (workoutType.includes(term)) {
+        matchedTerms.push(term);
       }
     });
-
-    // Calories = MET × weight (kg) × duration (hours)
-    // Duration is converted from seconds to hours
-    const durationInHours = (workout.totalDuration || 0) / 3600;
-    const caloriesBurned = metValue * userWeight * durationInHours;
     
+    // If no terms match, use default
+    if (matchedTerms.length === 0) {
+      return calculateWithMET(workout, MET_VALUES.default);
+    }
+    
+    // If only one term matches, use that MET value
+    if (matchedTerms.length === 1) {
+      return calculateWithMET(workout, MET_VALUES[matchedTerms[0] as keyof typeof MET_VALUES]);
+    }
+    
+    // If multiple terms match, use a weighted average
+    // This provides a more accurate MET value for combination workouts
+    let totalMET = 0;
+    matchedTerms.forEach(term => {
+      totalMET += MET_VALUES[term as keyof typeof MET_VALUES];
+    });
+    
+    const averageMET = totalMET / matchedTerms.length;
+    return calculateWithMET(workout, averageMET);
+  };
+
+  // Helper function to calculate calories with a given MET value
+  const calculateWithMET = (workout: WorkoutComplete, metValue: number): number => {
+    // Get actual exercise duration, excluding potential rest time
+    let durationInHours = (workout.totalDuration || 0) / 3600;
+    
+    // If the duration is unrealistically long (over 3 hours), 
+    // we can assume there might have been long rests or pauses
+    // Apply a correction factor for long workouts
+    if (durationInHours > 3) {
+      // Reduce the effective duration for calorie calculation
+      // Assume only 70% of time was spent in active exercise for very long sessions
+      durationInHours = durationInHours * 0.7;
+    }
+    
+    const caloriesBurned = metValue * userWeight * durationInHours;
     return Math.round(caloriesBurned);
   };
 
