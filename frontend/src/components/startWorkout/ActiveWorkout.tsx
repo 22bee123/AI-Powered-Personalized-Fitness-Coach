@@ -69,18 +69,23 @@ const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
                 <ChevronLeftIcon className="h-5 w-5 sm:h-6 sm:w-6" />
               </button>
               <div className="flex items-center space-x-2">
-                <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-white/20 flex items-center justify-center">
-                  <ClockIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+                <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-white/20 flex items-center justify-center">
+                  <ClockIcon className="h-5 w-5 sm:h-6 sm:w-6" />
                 </div>
-                <span className="text-lg sm:text-xl font-bold">
-                  {formatTime(timer)}
-                </span>
+                <div className="flex flex-col">
+                  <span className="text-xl sm:text-2xl font-bold tracking-wider">
+                    {formatTime(timer)}
+                  </span>
+                  <span className="text-xs sm:text-sm text-white/70">
+                    Total Workout Time
+                  </span>
+                </div>
               </div>
             </div>
             <div className="flex items-center space-x-2 sm:space-x-3">
               <button
                 onClick={onToggleSound}
-                className={`p-1.5 sm:p-2 rounded-full ${soundEnabled ? 'bg-white/20' : 'bg-white/10'}`}
+                className={`p-1.5 sm:p-2 rounded-full transition-colors ${soundEnabled ? 'bg-white/20 hover:bg-white/30' : 'bg-white/10 hover:bg-white/20'}`}
                 title={soundEnabled ? "Sound On" : "Sound Off"}
               >
                 {soundEnabled ? (
