@@ -217,6 +217,40 @@ export default function DashboardPage() {
     }
   };
 
+  const startWorkoutFromPlan = async (dayIndex: number) => {
+    if (!workoutPlan) {
+      return;
+    }
+
+    const targetDay = workoutPlan.weeklyPlan[dayIndex];
+    if (!targetDay || targetDay.focus === 'Rest' || targetDay.focus === 'Recovery') {
+      return;
+    }
+
+    setError(null);
+
+    try {
+      const response = await fetch('/api/workout-session/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          workoutPlanId: workoutPlan.id,
+          dayIndex,
+        }),
+      });
+
+      const data = (await response.json()) as { activeWorkoutSession?: WorkoutSession; message?: string };
+      if (!response.ok || !data.activeWorkoutSession) {
+        throw new Error(data.message || 'Could not start workout');
+      }
+
+      setActiveWorkoutSession(data.activeWorkoutSession);
+      setActiveTab('workout');
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : 'Could not start workout');
+    }
+  };
+
   const sendCoachMessage = async (message: string) => {
     setCoachLoading(true);
     setError(null);
@@ -353,7 +387,11 @@ export default function DashboardPage() {
 
         {activeTab === 'overview' && (
           <section className="split-grid">
-            <WorkoutPlanCard plan={workoutPlan} selectedDayIndex={trainableWorkoutIndex} />
+            <WorkoutPlanCard
+              plan={workoutPlan}
+              selectedDayIndex={trainableWorkoutIndex}
+              onStartWorkout={startWorkoutFromPlan}
+            />
             <div className="split-panel">
               <NutritionPlanCard plan={nutritionPlan} />
               <section className="card">
@@ -462,7 +500,11 @@ export default function DashboardPage() {
               />
             </div>
 
-            <WorkoutPlanCard plan={workoutPlan} selectedDayIndex={trainableWorkoutIndex} />
+            <WorkoutPlanCard
+              plan={workoutPlan}
+              selectedDayIndex={trainableWorkoutIndex}
+              onStartWorkout={startWorkoutFromPlan}
+            />
           </section>
         )}
 
@@ -533,4 +575,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-

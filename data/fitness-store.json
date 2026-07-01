@@ -1,6 +1,6 @@
 {
   "profile": {
-    "name": "Alex Rivera",
+    "name": "Kian",
     "email": "alex@example.com",
     "age": 29,
     "gender": "Male",
@@ -649,5 +649,15 @@
       "exercisesCompleted": 3,
       "completedAt": "2026-07-01T17:10:00.000Z"
     }
-  ]
+  ],
+  "activeWorkoutSession": {
+    "id": "session_1782922382153",
+    "startedAt": "2026-07-01T16:13:02.153Z",
+    "userId": "demo-user",
+    "workoutPlanId": "plan_1782920459439",
+    "dayIndex": 0,
+    "day": "Monday",
+    "focus": "Upper Body Strength",
+    "durationMinutes": 45
+  }
 }

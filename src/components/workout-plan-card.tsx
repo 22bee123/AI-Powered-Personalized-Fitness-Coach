@@ -4,9 +4,11 @@ import { ClockIcon, FireIcon } from '@heroicons/react/24/outline';
 export function WorkoutPlanCard({
   plan,
   selectedDayIndex,
+  onStartWorkout,
 }: {
   plan: WorkoutPlan | null;
   selectedDayIndex?: number | null;
+  onStartWorkout?: (dayIndex: number) => void | Promise<void>;
 }) {
   if (!plan) {
     return (
@@ -46,7 +48,22 @@ export function WorkoutPlanCard({
           return (
             <article
               key={`${day.day}-${index}`}
-              className={`day-card ${isRest ? 'day-card--rest' : ''} ${isSelected ? 'day-card--selected' : ''}`}
+              role={isSelected && onStartWorkout ? 'button' : undefined}
+              tabIndex={isSelected && onStartWorkout ? 0 : undefined}
+              onClick={isSelected && onStartWorkout ? () => onStartWorkout(index) : undefined}
+              onKeyDown={
+                isSelected && onStartWorkout
+                  ? (event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        void onStartWorkout(index);
+                      }
+                    }
+                  : undefined
+              }
+              className={`day-card ${isRest ? 'day-card--rest' : ''} ${isSelected ? 'day-card--selected' : ''} ${
+                isSelected && onStartWorkout ? 'day-card--clickable' : ''
+              }`}
             >
               <div className="day-card__top">
                 <div>
@@ -70,6 +87,10 @@ export function WorkoutPlanCard({
                   ))}
                 </ul>
               </div>
+
+              {isSelected && onStartWorkout && !isRest && (
+                <p className="day-card__hint">Click to start this workout and open the timer.</p>
+              )}
             </article>
           );
         })}

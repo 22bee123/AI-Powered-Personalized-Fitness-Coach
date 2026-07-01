@@ -2,9 +2,11 @@
   "/api/users/profile/route": "app/api/users/profile/route.js",
   "/api/workouts/latest/route": "app/api/workouts/latest/route.js",
   "/api/nutrition/latest/route": "app/api/nutrition/latest/route.js",
-  "/api/workout-complete/route": "app/api/workout-complete/route.js",
   "/api/coach/history/route": "app/api/coach/history/route.js",
+  "/api/workout-complete/route": "app/api/workout-complete/route.js",
   "/api/workout-session/active/route": "app/api/workout-session/active/route.js",
-  "/page": "app/page.js",
-  "/dashboard/page": "app/dashboard/page.js"
+  "/api/workout-session/start/route": "app/api/workout-session/start/route.js",
+  "/api/workout-session/end/route": "app/api/workout-session/end/route.js",
+  "/dashboard/page": "app/dashboard/page.js",
+  "/page": "app/page.js"
 }

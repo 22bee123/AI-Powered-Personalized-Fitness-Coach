@@ -11,11 +11,6 @@
       "static/chunks/main-app.js",
       "static/chunks/app/page.js"
     ],
-    "/sign-in/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/sign-in/page.js"
-    ],
     "/dashboard/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
@@ -36,25 +31,30 @@
       "static/chunks/main-app.js",
       "static/chunks/app/api/nutrition/latest/route.js"
     ],
-    "/api/workout-complete/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/workout-complete/route.js"
-    ],
     "/api/coach/history/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/api/coach/history/route.js"
     ],
-    "/api/workouts/generate/route": [
+    "/api/workout-complete/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/api/workouts/generate/route.js"
+      "static/chunks/app/api/workout-complete/route.js"
     ],
     "/api/workout-session/active/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/api/workout-session/active/route.js"
+    ],
+    "/api/workout-session/start/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/workout-session/start/route.js"
+    ],
+    "/api/workout-session/end/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/workout-session/end/route.js"
     ]
   }
 }

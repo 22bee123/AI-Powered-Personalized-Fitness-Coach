@@ -1,6 +1,6 @@
 # AI Fitness Coach
 
-A Next.js rewrite of the original AI-powered fitness coach app. The new version replaces the old Vite frontend plus Express backend split with a single App Router codebase that includes:
+A clean Next.js fitness coach app built as a single App Router codebase that includes:
 
 - a polished landing page
 - a dashboard for workouts, nutrition, coaching, and progress tracking
@@ -54,6 +54,5 @@ A Next.js rewrite of the original AI-powered fitness coach app. The new version 
 
 ## Notes
 
-- The legacy `frontend/` and `backend/` folders are still in the repo for reference, but the active app now lives in the root `src/` directory.
 - The local store lives in `data/fitness-store.json` and is created automatically on first run.
 - If you want, the next step can be migrating the local store to MongoDB and replacing the demo auth with Clerk or NextAuth.
