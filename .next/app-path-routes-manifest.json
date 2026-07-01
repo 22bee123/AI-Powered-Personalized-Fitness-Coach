@@ -1,0 +1,17 @@
+{
+  "/_not-found/page": "/_not-found",
+  "/api/coach/history/route": "/api/coach/history",
+  "/api/nutrition/generate/route": "/api/nutrition/generate",
+  "/api/nutrition/latest/route": "/api/nutrition/latest",
+  "/api/users/profile/route": "/api/users/profile",
+  "/api/coach/chat/route": "/api/coach/chat",
+  "/api/workout-session/active/route": "/api/workout-session/active",
+  "/api/workouts/generate/route": "/api/workouts/generate",
+  "/api/workouts/latest/route": "/api/workouts/latest",
+  "/api/workout-complete/route": "/api/workout-complete",
+  "/api/workout-session/end/route": "/api/workout-session/end",
+  "/api/workout-session/start/route": "/api/workout-session/start",
+  "/dashboard/page": "/dashboard",
+  "/page": "/",
+  "/sign-in/page": "/sign-in"
+}

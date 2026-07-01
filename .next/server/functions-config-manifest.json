@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "functions": {
+    "/api/nutrition/latest": {},
+    "/api/nutrition/generate": {},
+    "/api/workout-session/active": {},
+    "/api/coach/chat": {},
+    "/api/coach/history": {},
+    "/api/workout-complete": {},
+    "/api/workouts/generate": {},
+    "/api/users/profile": {},
+    "/api/workout-session/end": {},
+    "/api/workouts/latest": {},
+    "/api/workout-session/start": {}
+  }
+}

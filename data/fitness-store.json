@@ -1,0 +1,653 @@
+{
+  "profile": {
+    "name": "Alex Rivera",
+    "email": "alex@example.com",
+    "age": 29,
+    "gender": "Male",
+    "heightCm": 178,
+    "weightKg": 74,
+    "fitnessLevel": "Intermediate",
+    "goal": "Build lean muscle while staying agile",
+    "workoutDaysPerWeek": "5",
+    "preferredWorkoutDuration": "45-60 minutes",
+    "equipmentAccess": "Full gym"
+  },
+  "workoutPlans": [
+    {
+      "id": "plan_1782920459439",
+      "userId": "demo-user",
+      "title": "Progressive Split",
+      "difficulty": "intermediate",
+      "createdAt": "2026-07-01T15:40:59.439Z",
+      "notes": [
+        "Difficulty focus: Strength progression.",
+        "Build intensity gradually and stop 1-2 reps before failure on most sets.",
+        "Prioritize sleep, hydration, and warm-ups so the plan compounds week over week."
+      ],
+      "weeklyPlan": [
+        {
+          "day": "Monday",
+          "focus": "Upper Body Strength",
+          "durationMinutes": 45,
+          "warmup": [
+            "Dynamic walk",
+            "Arm circles",
+            "Bodyweight squats"
+          ],
+          "exercises": [
+            {
+              "name": "Bench Press",
+              "sets": 3,
+              "reps": "8-12",
+              "restSeconds": 45,
+              "notes": "Move with intent and control the eccentric."
+            },
+            {
+              "name": "One-Arm Row",
+              "sets": 3,
+              "reps": "8-12",
+              "restSeconds": 60,
+              "notes": "Keep the core braced and finish each rep cleanly."
+            },
+            {
+              "name": "Incline Press",
+              "sets": 3,
+              "reps": "8-12",
+              "restSeconds": 75,
+              "notes": "Move with intent and control the eccentric."
+            }
+          ],
+          "cooldown": [
+            "Slow walk",
+            "Light stretching",
+            "Box breathing"
+          ]
+        },
+        {
+          "day": "Tuesday",
+          "focus": "Lower Body Power",
+          "durationMinutes": 47,
+          "warmup": [
+            "Dynamic walk",
+            "Arm circles",
+            "Bodyweight squats"
+          ],
+          "exercises": [
+            {
+              "name": "Back Squat",
+              "sets": 3,
+              "reps": "8-12",
+              "restSeconds": 45,
+              "notes": "Move with intent and control the eccentric."
+            },
+            {
+              "name": "Romanian Deadlift",
+              "sets": 3,
+              "reps": "8-12",
+              "restSeconds": 60,
+              "notes": "Keep the core braced and finish each rep cleanly."
+            },
+            {
+              "name": "Walking Lunge",
+              "sets": 3,
+              "reps": "8-12",
+              "restSeconds": 75,
+              "notes": "Move with intent and control the eccentric."
+            }
+          ],
+          "cooldown": [
+            "Slow walk",
+            "Light stretching",
+            "Box breathing"
+          ]
+        },
+        {
+          "day": "Wednesday",
+          "focus": "Posterior Chain Strength",
+          "durationMinutes": 49,
+          "warmup": [
+            "Dynamic walk",
+            "Arm circles",
+            "Bodyweight squats"
+          ],
+          "exercises": [
+            {
+              "name": "Deadlift",
+              "sets": 3,
+              "reps": "8-12",
+              "restSeconds": 45,
+              "notes": "Move with intent and control the eccentric."
+            },
+            {
+              "name": "Hip Thrust",
+              "sets": 3,
+              "reps": "8-12",
+              "restSeconds": 60,
+              "notes": "Keep the core braced and finish each rep cleanly."
+            },
+            {
+              "name": "Hamstring Curl",
+              "sets": 3,
+              "reps": "8-12",
+              "restSeconds": 75,
+              "notes": "Move with intent and control the eccentric."
+            }
+          ],
+          "cooldown": [
+            "Slow walk",
+            "Light stretching",
+            "Box breathing"
+          ]
+        },
+        {
+          "day": "Thursday",
+          "focus": "Upper Body Strength",
+          "durationMinutes": 51,
+          "warmup": [
+            "Dynamic walk",
+            "Arm circles",
+            "Bodyweight squats"
+          ],
+          "exercises": [
+            {
+              "name": "Bench Press",
+              "sets": 3,
+              "reps": "8-12",
+              "restSeconds": 45,
+              "notes": "Move with intent and control the eccentric."
+            },
+            {
+              "name": "One-Arm Row",
+              "sets": 3,
+              "reps": "8-12",
+              "restSeconds": 60,
+              "notes": "Keep the core braced and finish each rep cleanly."
+            },
+            {
+              "name": "Incline Press",
+              "sets": 3,
+              "reps": "8-12",
+              "restSeconds": 75,
+              "notes": "Move with intent and control the eccentric."
+            }
+          ],
+          "cooldown": [
+            "Slow walk",
+            "Light stretching",
+            "Box breathing"
+          ]
+        },
+        {
+          "day": "Friday",
+          "focus": "Lower Body Power",
+          "durationMinutes": 53,
+          "warmup": [
+            "Dynamic walk",
+            "Arm circles",
+            "Bodyweight squats"
+          ],
+          "exercises": [
+            {
+              "name": "Back Squat",
+              "sets": 3,
+              "reps": "8-12",
+              "restSeconds": 45,
+              "notes": "Move with intent and control the eccentric."
+            },
+            {
+              "name": "Romanian Deadlift",
+              "sets": 3,
+              "reps": "8-12",
+              "restSeconds": 60,
+              "notes": "Keep the core braced and finish each rep cleanly."
+            },
+            {
+              "name": "Walking Lunge",
+              "sets": 3,
+              "reps": "8-12",
+              "restSeconds": 75,
+              "notes": "Move with intent and control the eccentric."
+            }
+          ],
+          "cooldown": [
+            "Slow walk",
+            "Light stretching",
+            "Box breathing"
+          ]
+        },
+        {
+          "day": "Saturday",
+          "focus": "Recovery",
+          "durationMinutes": 20,
+          "warmup": [
+            "Easy walk",
+            "Joint circles"
+          ],
+          "exercises": [
+            {
+              "name": "Light Mobility Session",
+              "sets": 1,
+              "reps": "10-15 min",
+              "restSeconds": 0,
+              "notes": "Keep this session easy and restorative."
+            }
+          ],
+          "cooldown": [
+            "Breathing drill",
+            "Stretching",
+            "Hydrate"
+          ]
+        },
+        {
+          "day": "Sunday",
+          "focus": "Recovery",
+          "durationMinutes": 20,
+          "warmup": [
+            "Easy walk",
+            "Joint circles"
+          ],
+          "exercises": [
+            {
+              "name": "Light Mobility Session",
+              "sets": 1,
+              "reps": "10-15 min",
+              "restSeconds": 0,
+              "notes": "Keep this session easy and restorative."
+            }
+          ],
+          "cooldown": [
+            "Breathing drill",
+            "Stretching",
+            "Hydrate"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "plan_001",
+      "userId": "demo-user",
+      "title": "Lean Strength Split",
+      "difficulty": "intermediate",
+      "createdAt": "2026-06-28T08:00:00.000Z",
+      "notes": [
+        "Progressively add load each week while keeping 1-2 reps in reserve.",
+        "Keep rest strict on accessory work to maintain training density."
+      ],
+      "weeklyPlan": [
+        {
+          "day": "Monday",
+          "focus": "Upper Body Strength",
+          "durationMinutes": 55,
+          "warmup": [
+            "Arm circles",
+            "Band pull-aparts",
+            "Scapular push-ups"
+          ],
+          "exercises": [
+            {
+              "name": "Barbell Bench Press",
+              "sets": 4,
+              "reps": "6-8",
+              "restSeconds": 90,
+              "notes": "Drive through the floor."
+            },
+            {
+              "name": "One-Arm Dumbbell Row",
+              "sets": 4,
+              "reps": "8-10",
+              "restSeconds": 75,
+              "notes": "Pause at the top."
+            },
+            {
+              "name": "Incline Dumbbell Press",
+              "sets": 3,
+              "reps": "8-10",
+              "restSeconds": 75,
+              "notes": "Control the descent."
+            }
+          ],
+          "cooldown": [
+            "Chest stretch",
+            "Thoracic rotations",
+            "Box breathing"
+          ]
+        },
+        {
+          "day": "Tuesday",
+          "focus": "Lower Body Power",
+          "durationMinutes": 50,
+          "warmup": [
+            "Glute bridges",
+            "Bodyweight squats",
+            "Hip openers"
+          ],
+          "exercises": [
+            {
+              "name": "Back Squat",
+              "sets": 4,
+              "reps": "5-6",
+              "restSeconds": 120,
+              "notes": "Brace before every rep."
+            },
+            {
+              "name": "Romanian Deadlift",
+              "sets": 3,
+              "reps": "8-10",
+              "restSeconds": 90,
+              "notes": "Keep the spine neutral."
+            },
+            {
+              "name": "Walking Lunges",
+              "sets": 3,
+              "reps": "10/leg",
+              "restSeconds": 60,
+              "notes": "Stay tall and controlled."
+            }
+          ],
+          "cooldown": [
+            "Hamstring stretch",
+            "Couch stretch",
+            "Deep squat hold"
+          ]
+        },
+        {
+          "day": "Wednesday",
+          "focus": "Mobility + Core",
+          "durationMinutes": 35,
+          "warmup": [
+            "Cat-cow",
+            "World’s greatest stretch",
+            "Dead bug"
+          ],
+          "exercises": [
+            {
+              "name": "Pallof Press",
+              "sets": 3,
+              "reps": "12/side",
+              "restSeconds": 45,
+              "notes": "Resist rotation."
+            },
+            {
+              "name": "Hanging Knee Raise",
+              "sets": 3,
+              "reps": "10-12",
+              "restSeconds": 60,
+              "notes": "Avoid swinging."
+            },
+            {
+              "name": "Side Plank",
+              "sets": 3,
+              "reps": "30-45 sec",
+              "restSeconds": 45,
+              "notes": "Keep hips high."
+            }
+          ],
+          "cooldown": [
+            "90/90 breathing",
+            "Child’s pose",
+            "Cobra stretch"
+          ]
+        },
+        {
+          "day": "Thursday",
+          "focus": "Conditioning Intervals",
+          "durationMinutes": 40,
+          "warmup": [
+            "Brisk walk",
+            "Jumping jacks",
+            "Light bike"
+          ],
+          "exercises": [
+            {
+              "name": "Rowing Sprints",
+              "sets": 8,
+              "reps": "30 sec",
+              "restSeconds": 60,
+              "notes": "Explode, then recover."
+            },
+            {
+              "name": "Kettlebell Swings",
+              "sets": 4,
+              "reps": "15",
+              "restSeconds": 45,
+              "notes": "Hip hinge, not squat."
+            },
+            {
+              "name": "Sled Push",
+              "sets": 6,
+              "reps": "20 m",
+              "restSeconds": 75,
+              "notes": "Stay low and drive."
+            }
+          ],
+          "cooldown": [
+            "Calf stretch",
+            "Quad stretch",
+            "Easy bike spin"
+          ]
+        },
+        {
+          "day": "Friday",
+          "focus": "Upper Body Hypertrophy",
+          "durationMinutes": 55,
+          "warmup": [
+            "Band rows",
+            "Push-up plus",
+            "Shoulder CARs"
+          ],
+          "exercises": [
+            {
+              "name": "Pull-ups",
+              "sets": 4,
+              "reps": "AMRAP",
+              "restSeconds": 90,
+              "notes": "Full stretch at the bottom."
+            },
+            {
+              "name": "Seated Dumbbell Shoulder Press",
+              "sets": 4,
+              "reps": "8-12",
+              "restSeconds": 75,
+              "notes": "No bouncing."
+            },
+            {
+              "name": "Cable Lateral Raise",
+              "sets": 3,
+              "reps": "12-15",
+              "restSeconds": 45,
+              "notes": "Lead with the elbows."
+            }
+          ],
+          "cooldown": [
+            "Lat stretch",
+            "Neck mobility",
+            "Slow nasal breathing"
+          ]
+        },
+        {
+          "day": "Saturday",
+          "focus": "Active Recovery",
+          "durationMinutes": 30,
+          "warmup": [
+            "Easy walk",
+            "Joint circles",
+            "Light mobility"
+          ],
+          "exercises": [
+            {
+              "name": "Zone 2 Cardio",
+              "sets": 1,
+              "reps": "25 min",
+              "restSeconds": 0,
+              "notes": "Keep it conversational."
+            },
+            {
+              "name": "Mobility Flow",
+              "sets": 1,
+              "reps": "10 min",
+              "restSeconds": 0,
+              "notes": "Focus on range of motion."
+            }
+          ],
+          "cooldown": [
+            "Legs-up-the-wall",
+            "Stretch hold",
+            "Slow exhales"
+          ]
+        },
+        {
+          "day": "Sunday",
+          "focus": "Rest",
+          "durationMinutes": 20,
+          "warmup": [
+            "Easy walk"
+          ],
+          "exercises": [
+            {
+              "name": "Full Rest",
+              "sets": 1,
+              "reps": "All day",
+              "restSeconds": 0,
+              "notes": "Recover and prepare for next week."
+            }
+          ],
+          "cooldown": [
+            "Meal prep",
+            "Sleep early",
+            "Plan next week"
+          ]
+        }
+      ]
+    }
+  ],
+  "nutritionPlans": [
+    {
+      "id": "nutrition_001",
+      "userId": "demo-user",
+      "title": "Performance Recomp Plan",
+      "createdAt": "2026-06-28T08:15:00.000Z",
+      "dailyCalories": 2450,
+      "macros": {
+        "protein": 180,
+        "carbs": 265,
+        "fat": 75
+      },
+      "tips": [
+        "Anchor every meal with a lean protein source.",
+        "Front-load carbs around training for better performance.",
+        "Keep hydration high, especially on conditioning days."
+      ],
+      "meals": [
+        {
+          "name": "Protein Oats",
+          "time": "7:30 AM",
+          "calories": 540,
+          "protein": 38,
+          "carbs": 62,
+          "fat": 15,
+          "foods": [
+            "Oats",
+            "Greek yogurt",
+            "Blueberries",
+            "Chia seeds",
+            "Whey protein"
+          ]
+        },
+        {
+          "name": "Chicken Rice Bowl",
+          "time": "12:30 PM",
+          "calories": 690,
+          "protein": 48,
+          "carbs": 78,
+          "fat": 18,
+          "foods": [
+            "Chicken breast",
+            "Jasmine rice",
+            "Roasted vegetables",
+            "Avocado"
+          ]
+        },
+        {
+          "name": "Pre-workout Snack",
+          "time": "4:00 PM",
+          "calories": 280,
+          "protein": 22,
+          "carbs": 30,
+          "fat": 6,
+          "foods": [
+            "Banana",
+            "Rice cakes",
+            "Cottage cheese"
+          ]
+        },
+        {
+          "name": "Salmon Recovery Dinner",
+          "time": "8:00 PM",
+          "calories": 720,
+          "protein": 52,
+          "carbs": 63,
+          "fat": 24,
+          "foods": [
+            "Salmon",
+            "Sweet potato",
+            "Spinach",
+            "Olive oil"
+          ]
+        }
+      ]
+    }
+  ],
+  "chatHistory": [],
+  "completedWorkouts": [
+    {
+      "id": "complete_1782920493297",
+      "userId": "demo-user",
+      "workoutPlanId": "plan_1782920459439",
+      "day": "Tuesday",
+      "focus": "Lower Body Power",
+      "totalDuration": 2820,
+      "exercisesCompleted": 3,
+      "completedAt": "2026-07-01T15:41:33.297Z"
+    },
+    {
+      "id": "complete_1782920463868",
+      "userId": "demo-user",
+      "workoutPlanId": "plan_1782920459439",
+      "day": "Monday",
+      "focus": "Upper Body Strength",
+      "totalDuration": 2700,
+      "exercisesCompleted": 3,
+      "completedAt": "2026-07-01T15:41:03.868Z"
+    },
+    {
+      "id": "complete_001",
+      "userId": "demo-user",
+      "workoutPlanId": "plan_001",
+      "day": "Monday",
+      "focus": "Upper Body Strength",
+      "totalDuration": 3360,
+      "exercisesCompleted": 3,
+      "completedAt": "2026-06-29T17:25:00.000Z"
+    },
+    {
+      "id": "complete_002",
+      "userId": "demo-user",
+      "workoutPlanId": "plan_001",
+      "day": "Tuesday",
+      "focus": "Lower Body Power",
+      "totalDuration": 3180,
+      "exercisesCompleted": 3,
+      "completedAt": "2026-06-30T17:20:00.000Z"
+    },
+    {
+      "id": "complete_003",
+      "userId": "demo-user",
+      "workoutPlanId": "plan_001",
+      "day": "Thursday",
+      "focus": "Conditioning Intervals",
+      "totalDuration": 2460,
+      "exercisesCompleted": 3,
+      "completedAt": "2026-07-01T17:10:00.000Z"
+    }
+  ]
+}

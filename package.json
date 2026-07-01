@@ -1,24 +1,28 @@
 {
   "name": "ai-powered-personalized-fitness-coach",
-  "version": "1.0.0",
-  "description": "A comprehensive fitness application that uses AI to provide personalized workout plans, nutrition advice, and real-time feedback to users.",
-  "main": "server.js",
+  "version": "2.0.0",
+  "private": true,
+  "description": "AI-powered fitness coach rebuilt with Next.js.",
   "scripts": {
-    "dev": "nodemon backend/server.js"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint ."
   },
-  "type": "module",
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
     "@google/generative-ai": "^0.24.0",
-    "cors": "^2.8.5",
-    "dotenv": "^16.4.7",
-    "express": "^4.21.2",
-    "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.12.1"
+    "@heroicons/react": "^2.2.0",
+    "next": "^15.4.1",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-markdown": "^10.1.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.9"
+    "@types/node": "^22.15.30",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "eslint": "^9.31.0",
+    "eslint-config-next": "^15.4.1",
+    "typescript": "^5.8.3"
   }
 }
