@@ -109,6 +109,8 @@ export function ActiveWorkout({ session, onExit, onComplete }: ActiveWorkoutProp
 
   // Exit confirmation
   const [exitDialogOpen, setExitDialogOpen] = useState(false)
+  // Finish confirmation (when finishing with incomplete sets)
+  const [finishDialogOpen, setFinishDialogOpen] = useState(false)
   // Completion summary
   const [summary, setSummary] = useState<CompletedWorkout | null>(null)
 
@@ -331,6 +333,16 @@ export function ActiveWorkout({ session, onExit, onComplete }: ActiveWorkoutProp
     setSummary(workout)
   }, [elapsedSec, exercises, setsDone, session, totalSetsTarget])
 
+  // Called when the user taps "Finish Workout". If there are incomplete sets,
+  // confirm first; otherwise finish immediately.
+  const handleFinishClick = useCallback(() => {
+    if (totalSetsCompleted < totalSetsTarget) {
+      setFinishDialogOpen(true)
+    } else {
+      handleFinish()
+    }
+  }, [totalSetsCompleted, totalSetsTarget, handleFinish])
+
   const handleSummaryDismiss = useCallback(() => {
     if (summary) {
       onComplete(summary)
@@ -363,13 +375,8 @@ export function ActiveWorkout({ session, onExit, onComplete }: ActiveWorkoutProp
               {session.focus}
             </p>
           </div>
-          <button
-            onClick={handleFinish}
-            className="flex items-center gap-1 text-sm font-medium text-emerald-600 hover:text-emerald-700 transition-colors"
-          >
-            <Flag className="h-4 w-4" />
-            Finish
-          </button>
+          {/* Spacer to keep title centered (Exit button is on the left only) */}
+          <div className="w-12" />
         </div>
 
         {/* Exercise progress dots */}
@@ -605,23 +612,23 @@ export function ActiveWorkout({ session, onExit, onComplete }: ActiveWorkoutProp
             <ChevronLeft className="h-4 w-4 mr-1" />
             Prev
           </Button>
-          <Button
-            onClick={nextExercise}
-            disabled={currentIdx === totalExercises - 1}
-            className="flex-[2] h-11 bg-emerald-600 hover:bg-emerald-700 text-white"
-          >
-            {currentIdx === totalExercises - 1 ? (
-              <>
-                <Flag className="h-4 w-4 mr-1.5" />
-                Finish Workout
-              </>
-            ) : (
-              <>
-                Next Exercise
-                <ChevronRight className="h-4 w-4 ml-1" />
-              </>
-            )}
-          </Button>
+          {currentIdx === totalExercises - 1 ? (
+            <Button
+              onClick={handleFinishClick}
+              className="flex-[2] h-11 bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              <Flag className="h-4 w-4 mr-1.5" />
+              Finish Workout
+            </Button>
+          ) : (
+            <Button
+              onClick={nextExercise}
+              className="flex-[2] h-11 bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              Next Exercise
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          )}
         </div>
       </div>
 
@@ -650,35 +657,40 @@ export function ActiveWorkout({ session, onExit, onComplete }: ActiveWorkoutProp
         </DialogContent>
       </Dialog>
 
-      {/* Finish confirmation (if not all sets done) */}
-      <FinishConfirmation
-        open={false}
-        totalSetsCompleted={totalSetsCompleted}
-        totalSetsTarget={totalSetsTarget}
-        onConfirm={handleFinish}
-      />
+      {/* Finish confirmation dialog (shown when finishing with incomplete sets) */}
+      <Dialog open={finishDialogOpen} onOpenChange={setFinishDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-amber-500" />
+              Finish workout early?
+            </DialogTitle>
+            <DialogDescription>
+              You&apos;ve completed {totalSetsCompleted} of {totalSetsTarget} sets
+              across {exercises.length} exercises. Finishing now will save this
+              session with your current progress. You can always train the
+              remaining sets next time.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2">
+            <Button variant="outline" onClick={() => setFinishDialogOpen(false)}>
+              Keep Training
+            </Button>
+            <Button
+              onClick={() => {
+                setFinishDialogOpen(false)
+                handleFinish()
+              }}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              <Flag className="h-4 w-4 mr-1.5" />
+              Finish Anyway
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
-}
-
-// Inline finish confirmation (used when finishing with incomplete sets)
-function FinishConfirmation({
-  open,
-  totalSetsCompleted,
-  totalSetsTarget,
-  onConfirm,
-}: {
-  open: boolean
-  totalSetsCompleted: number
-  totalSetsTarget: number
-  onConfirm: () => void
-}) {
-  // This is a placeholder; we trigger finish directly but could add confirmation
-  void open
-  void totalSetsCompleted
-  void totalSetsTarget
-  void onConfirm
-  return null
 }
 
 function WorkoutSummary({

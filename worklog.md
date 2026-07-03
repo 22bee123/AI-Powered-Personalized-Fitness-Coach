@@ -161,3 +161,34 @@ Stage Summary:
 - Exit confirmation prevents accidental data loss
 - Audio beeps work on set completion and rest end
 - All flows verified via Agent Browser, no console errors
+
+---
+Task ID: 4
+Agent: Main Agent
+Task: Fix workout finish bug (disabled button + remove top-right Finish)
+
+Work Log:
+- Identified two bugs in active-workout.tsx:
+  1. Top-right "Finish" button existed in header (user wanted it removed)
+  2. Bottom "Next Exercise" button had `disabled={currentIdx === totalExercises - 1}`,
+     which disabled it on the LAST exercise — exactly when it showed "Finish Workout".
+     So users saw "Finish Workout" but couldn't click it.
+- Fix 1: Removed the top-right "Finish" button from header; replaced with a spacer
+  div to keep the title centered. Exit button is now the only header action (left side).
+- Fix 2: Split the bottom button into two conditional buttons:
+  - Last exercise → enabled "Finish Workout" button calling handleFinishClick
+  - Other exercises → "Next Exercise" button calling nextExercise
+- Added handleFinishClick: if incomplete sets, opens confirmation dialog;
+  if all sets done, finishes directly (no dialog).
+- Replaced dead FinishConfirmation placeholder with a real Dialog that shows
+  "Finish workout early?" with "Keep Training" / "Finish Anyway" buttons.
+- Added finishDialogOpen state.
+- Lint passes.
+
+Stage Summary:
+- Verified via Agent Browser:
+  - No Finish button in top-right (removed)
+  - On last exercise, "Finish Workout" button is clickable
+  - With incomplete sets: clicking Finish opens confirmation → "Finish Anyway" → summary (13% completion saved)
+  - With all sets done: clicking Finish goes straight to summary (100% completion, no dialog)
+- Bug is fixed. Users can now finish workouts regardless of completion.
