@@ -1,0 +1,85 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Workout {
+  id        String        @id @default(cuid())
+  name      String
+  date      DateTime      @default(now())
+  duration  Int           @default(0) // in minutes
+  notes     String?
+  category  String        @default("Strength") // Strength, Cardio, Flexibility, Sports
+  calories  Int           @default(0)
+  exerciseLogs ExerciseLog[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@index([date])
+}
+
+model Exercise {
+  id           String        @id @default(cuid())
+  name         String
+  category     String        // Chest, Back, Legs, Shoulders, Arms, Core, Cardio, Full Body
+  muscleGroup  String
+  equipment    String?
+  difficulty   String        @default("Beginner") // Beginner, Intermediate, Advanced
+  description  String?
+  instructions String?
+  icon         String?
+  isCustom     Boolean       @default(false)
+  exerciseLogs ExerciseLog[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model ExerciseLog {
+  id         String   @id @default(cuid())
+  workoutId  String
+  workout    Workout  @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  exerciseId String
+  exercise   Exercise @relation(fields: [exerciseId], references: [id])
+  sets       Int      @default(3)
+  reps       Int      @default(10)
+  weight     Float    @default(0) // in kg
+  restSeconds Int     @default(60)
+  notes      String?
+  createdAt  DateTime @default(now())
+
+  @@index([workoutId])
+  @@index([exerciseId])
+}
+
+model Goal {
+  id         String    @id @default(cuid())
+  title      String
+  type       String    // Workouts, Weight, Volume, Duration
+  target     Float
+  current    Float     @default(0)
+  unit       String    // e.g. "workouts", "kg", "minutes"
+  deadline   DateTime?
+  completed  Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model BodyMetric {
+  id         String    @id @default(cuid())
+  date       DateTime  @default(now())
+  weight     Float?    // in kg
+  bodyFat    Float?    // in %
+  muscleMass Float?    // in kg
+  notes      String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([date])
+}
