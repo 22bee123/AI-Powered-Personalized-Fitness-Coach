@@ -94,6 +94,27 @@ export interface ChatMessage {
   timestamp: number
 }
 
+// Completed workout session (history record)
+export interface CompletedExercise {
+  name: string
+  setsCompleted: number
+  targetSets: number
+  reps: string
+  rest: string
+}
+
+export interface CompletedWorkout {
+  id: string
+  date: string // ISO timestamp when completed
+  startedAt: string // ISO timestamp when started
+  planDay: string // e.g., "Day 1 - Monday"
+  focus: string // e.g., "Upper Body Push"
+  durationSec: number // total active duration in seconds
+  exercises: CompletedExercise[]
+  totalSetsCompleted: number
+  totalSetsTarget: number
+}
+
 export const GOAL_LABELS: Record<FitnessGoal, string> = {
   lose_weight: 'Lose Weight',
   build_muscle: 'Build Muscle',

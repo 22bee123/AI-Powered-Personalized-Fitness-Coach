@@ -3,6 +3,7 @@ import type {
   WorkoutPlan,
   NutritionPlan,
   ChatMessage,
+  CompletedWorkout,
 } from '@/lib/types/app'
 
 const KEYS = {
@@ -11,6 +12,7 @@ const KEYS = {
   nutritionPlan: 'aifit.nutritionPlan',
   chat: 'aifit.chat',
   onboarded: 'aifit.onboarded',
+  workoutHistory: 'aifit.workoutHistory',
 }
 
 function safeGet<T>(key: string, fallback: T): T {
@@ -58,6 +60,22 @@ export const storage = {
 
   isOnboarded: () => safeGet<boolean>(KEYS.onboarded, false),
   setOnboarded: (v: boolean) => safeSet(KEYS.onboarded, v),
+
+  getWorkoutHistory: () => safeGet<CompletedWorkout[]>(KEYS.workoutHistory, []),
+  setWorkoutHistory: (h: CompletedWorkout[]) => safeSet(KEYS.workoutHistory, h),
+  addWorkoutToHistory: (w: CompletedWorkout) => {
+    const history = safeGet<CompletedWorkout[]>(KEYS.workoutHistory, [])
+    history.unshift(w)
+    safeSet(KEYS.workoutHistory, history)
+  },
+  deleteWorkoutFromHistory: (id: string) => {
+    const history = safeGet<CompletedWorkout[]>(KEYS.workoutHistory, [])
+    safeSet(
+      KEYS.workoutHistory,
+      history.filter((w) => w.id !== id)
+    )
+  },
+  clearWorkoutHistory: () => safeRemove(KEYS.workoutHistory),
 
   reset: () => {
     Object.values(KEYS).forEach(safeRemove)

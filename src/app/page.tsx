@@ -4,6 +4,7 @@ import { useState, useSyncExternalStore } from 'react'
 import { Landing } from '@/components/app/landing'
 import { Onboarding } from '@/components/app/onboarding'
 import { AppShell } from '@/components/app/app-shell'
+import { WorkoutFullPage } from '@/components/app/workout-full-page'
 import { storage } from '@/lib/storage'
 import type {
   UserProfile,
@@ -11,7 +12,7 @@ import type {
   NutritionPlan,
 } from '@/lib/types/app'
 
-type View = 'landing' | 'onboarding' | 'app'
+type View = 'landing' | 'onboarding' | 'app' | 'workout-full'
 
 function readInitialState() {
   if (typeof window === 'undefined') {
@@ -77,6 +78,14 @@ export default function Home() {
     storage.setNutritionPlan(plan)
   }
 
+  const handleOpenWorkoutFull = () => {
+    setView('workout-full')
+  }
+
+  const handleBackFromWorkout = () => {
+    setView('app')
+  }
+
   // On the server (before mount), show a neutral loader to avoid hydration mismatch
   if (!hydrated) {
     return (
@@ -102,6 +111,17 @@ export default function Home() {
     )
   }
 
+  if (view === 'workout-full' && profile) {
+    return (
+      <WorkoutFullPage
+        profile={profile}
+        plan={workoutPlan}
+        onBack={handleBackFromWorkout}
+        onPlanUpdate={handleWorkoutUpdate}
+      />
+    )
+  }
+
   if (view === 'app' && profile) {
     return (
       <AppShell
@@ -111,6 +131,7 @@ export default function Home() {
         onWorkoutUpdate={handleWorkoutUpdate}
         onNutritionUpdate={handleNutritionUpdate}
         onLogout={handleLogout}
+        onOpenWorkoutFull={handleOpenWorkoutFull}
       />
     )
   }

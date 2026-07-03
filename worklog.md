@@ -113,3 +113,51 @@ Stage Summary:
 - All API calls return 200, no console errors
 - Lint passes cleanly
 - App is production-ready
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: Add interactive workout mode with timers, history, and progress (full-page)
+
+Work Log:
+- Added CompletedWorkout/CompletedExercise types to lib/types/app.ts
+- Added workout history storage functions (add/delete/clear/get) to lib/storage.ts
+- Built ActiveWorkout component (src/components/app/active-workout.tsx):
+  - Total workout timer (counts up, pause/resume support, timestamp-based for accuracy)
+  - Per-set tracking with tap-to-log checkboxes
+  - Auto-starting rest timer (parses "90s"/"2 min" strings → seconds)
+  - Rest timer controls: Skip, +15s, +30s
+  - Audio beep on set completion and rest timer end (Web Audio API, no external files)
+  - Exercise navigation (prev/next) with progress dots
+  - Exit confirmation dialog (prevents accidental data loss)
+  - Workout completion summary screen with stats (duration, sets, exercises, completion %)
+- Built WorkoutHistory component (src/components/app/workout-history.tsx):
+  - Summary stats (total workouts, time, sets, this week)
+  - History cards with date, duration, sets completed, exercise breakdown
+  - Delete individual entries
+- Built WorkoutProgress component (src/components/app/workout-progress.tsx):
+  - 4 stat cards (workouts, time, streak, avg completion)
+  - Weekly goal progress bar (tracks against profile.workoutDaysPerWeek)
+  - 14-day activity bar chart (recharts)
+  - Duration trend area chart (recharts)
+  - AI-style insights based on workout data
+- Built WorkoutFullPage container (src/components/app/workout-full-page.tsx):
+  - Back button (top-left) returning to app shell
+  - Plan/History/Progress sub-view tabs
+  - No navbar, no bottom tabs (full page as requested)
+  - Session cards with "Start Workout" buttons
+  - Active workout mode takes over full screen
+- Updated AppShell: workout tab now calls onOpenWorkoutFull instead of rendering inline
+- Updated page.tsx: added 'workout-full' view with back navigation
+- Removed unused workout-plan-tab.tsx
+- Lint passes cleanly
+
+Stage Summary:
+- Full-page workout view works: back button, no navbar/tabs, plan/history/progress sub-tabs
+- Active workout tested end-to-end: started Day 1, completed sets, rest timer auto-started, 
+  navigated exercises, finished → summary → saved to history
+- History shows saved workout with full stats
+- Progress tab shows charts (14-day activity bar chart, duration trend) and insights
+- Exit confirmation prevents accidental data loss
+- Audio beeps work on set completion and rest end
+- All flows verified via Agent Browser, no console errors

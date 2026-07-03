@@ -13,7 +13,6 @@ import {
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { ChatTab } from '@/components/app/chat-tab'
-import { WorkoutPlanTab } from '@/components/app/workout-plan-tab'
 import { NutritionPlanTab } from '@/components/app/nutrition-plan-tab'
 import type {
   UserProfile,
@@ -31,6 +30,7 @@ interface AppShellProps {
   onWorkoutUpdate: (plan: WorkoutPlan) => void
   onNutritionUpdate: (plan: NutritionPlan) => void
   onLogout: () => void
+  onOpenWorkoutFull: () => void
 }
 
 const TABS: { id: TabId; label: string; icon: typeof MessageSquare }[] = [
@@ -43,12 +43,21 @@ export function AppShell({
   profile,
   workoutPlan,
   nutritionPlan,
-  onWorkoutUpdate,
   onNutritionUpdate,
   onLogout,
+  onOpenWorkoutFull,
 }: AppShellProps) {
-  const [activeTab, setActiveTab] = useState<TabId>('workout')
+  const [activeTab, setActiveTab] = useState<TabId>('chat')
   const [menuOpen, setMenuOpen] = useState(false)
+
+  const handleTabClick = (tab: TabId) => {
+    if (tab === 'workout') {
+      // Workout opens a full-page view (no navbar/tabs)
+      onOpenWorkoutFull()
+    } else {
+      setActiveTab(tab)
+    }
+  }
 
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
@@ -131,7 +140,7 @@ export function AppShell({
         </AnimatePresence>
       </header>
 
-      {/* Tab content */}
+      {/* Tab content — only chat & nutrition render inline; workout opens full page */}
       <main className="flex-1 overflow-hidden">
         <AnimatePresence mode="wait">
           <motion.div
@@ -148,17 +157,6 @@ export function AppShell({
                 workoutPlan={workoutPlan}
                 nutritionPlan={nutritionPlan}
               />
-            )}
-            {activeTab === 'workout' && (
-              <ScrollArea>
-                <div className="max-w-2xl mx-auto px-4 py-5 pb-28">
-                  <WorkoutPlanTab
-                    profile={profile}
-                    plan={workoutPlan}
-                    onUpdate={onWorkoutUpdate}
-                  />
-                </div>
-              </ScrollArea>
             )}
             {activeTab === 'nutrition' && (
               <ScrollArea>
@@ -184,7 +182,7 @@ export function AppShell({
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => handleTabClick(tab.id)}
                 className={cn(
                   'relative flex flex-col items-center justify-center gap-0.5 px-6 py-2 transition-colors',
                   active
