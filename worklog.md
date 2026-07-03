@@ -76,3 +76,40 @@ Stage Summary:
 - Mobile responsive design verified at 390x844 viewport
 - Lint passes with no errors
 - App is production-ready
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Rebuild as AI fitness app (FitForge) with DeepSeek integration
+
+Work Log:
+- Added DeepSeek API key to .env (DEEPSEEK_API_KEY, server-side only)
+- Verified DeepSeek API works (returns model "deepseek-v4-flash")
+- Verified JSON mode works for structured output
+- Created types: UserProfile, WorkoutPlan, NutritionPlan, ChatMessage (src/lib/types/app.ts)
+- Created localStorage helper for persistence (src/lib/storage.ts)
+- Created DeepSeek client (src/lib/deepseek.ts) with JSON mode + fallback parsing
+- Built API routes:
+  - /api/generate-plans: Generates workout + nutrition plans in parallel using DeepSeek JSON mode with carefully crafted system/user prompts (NASM/RD persona, Mifflin-St Jeor equation, structured schema)
+  - /api/chat: Context-aware chat with user profile + plans injected as system context
+- Built landing page (src/components/app/landing.tsx): navbar, hero with phone mockup, stats bar, features grid, how-it-works, testimonials, CTA, footer
+- Built onboarding form (src/components/app/onboarding.tsx): 4-step wizard (name/age/gender → body metrics → goal/activity → schedule/diet) with animated generating screen
+- Built app shell (src/components/app/app-shell.tsx): top header with profile dropdown, content area, fixed bottom tab bar (Coach/Workout/Nutrition)
+- Built chat tab (src/components/app/chat-tab.tsx): full chat UI with DeepSeek, suggested prompts, message persistence
+- Built workout plan tab (src/components/app/workout-plan-tab.tsx): expandable session cards, tips, warmup, regenerate
+- Built nutrition plan tab (src/components/app/nutrition-plan-tab.tsx): macro cards, hydration, meals, foods to emphasize/avoid, tips, regenerate
+- Wired up page.tsx with view switching (landing → onboarding → app) using useSyncExternalStore for SSR-safe hydration
+- Removed old PulseFit components and APIs (cleanup)
+- Fixed lint errors (setState-in-effect, export name mismatches, stray import)
+
+Stage Summary:
+- Landing page renders as professional SaaS website (verified via Agent Browser)
+- Onboarding flow works: 4 steps → AI generates plans in ~12s
+- AI generated real, detailed plans:
+  - Workout: 4-day Upper/Lower split with 6 exercises per session, sets/reps/rest
+  - Nutrition: 2970 kcal, macros (115g P / 288g C / 64g F), 5 meals with portions, hydration, food lists, tips
+- Chat tab: AI responds with context-aware advice referencing user's plan (1.5s response)
+- Mobile responsive: bottom tab bar works on 390x844 viewport
+- All API calls return 200, no console errors
+- Lint passes cleanly
+- App is production-ready

@@ -14,17 +14,17 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PulseFit — Your Personal Fitness Companion",
-  description: "Track workouts, monitor progress, and crush your fitness goals with PulseFit. Smart workout logging, exercise library, progress analytics, and AI coaching.",
-  keywords: ["fitness", "workout tracker", "exercise", "gym", "training", "PulseFit"],
-  authors: [{ name: "PulseFit" }],
+  title: "FitForge — AI Personal Fitness Coach",
+  description: "Get a personalized AI-generated workout and nutrition plan in seconds. Chat with your AI coach, track progress, and achieve your fitness goals with FitForge.",
+  keywords: ["fitness", "AI coach", "workout plan", "nutrition plan", "personal trainer", "FitForge"],
+  authors: [{ name: "FitForge" }],
   icons: {
     icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
   },
   openGraph: {
-    title: "PulseFit — Your Personal Fitness Companion",
-    description: "Track workouts, monitor progress, and crush your fitness goals.",
-    siteName: "PulseFit",
+    title: "FitForge — AI Personal Fitness Coach",
+    description: "Get a personalized AI-generated workout and nutrition plan in seconds.",
+    siteName: "FitForge",
     type: "website",
   },
 };
