@@ -192,3 +192,35 @@ Stage Summary:
   - With incomplete sets: clicking Finish opens confirmation → "Finish Anyway" → summary (13% completion saved)
   - With all sets done: clicking Finish goes straight to summary (100% completion, no dialog)
 - Bug is fixed. Users can now finish workouts regardless of completion.
+
+---
+Task ID: 5
+Agent: Main Agent
+Task: Lock sets during rest, add sounds to Skip/+sec, auto-advance next set on Skip
+
+Work Log:
+- Added derived `activeSetIdx` = first incomplete set in current exercise
+  (naturally advances as sets are completed; no extra state needed)
+- Updated set buttons:
+  - `disabled={restActive}` — sets cannot be toggled while rest timer runs
+  - During rest: dimmed (opacity-50), cursor-not-allowed, show "Resting…" label
+  - Active (next-to-do) set: emerald border + ring + "Next" badge (pulsing)
+  - Completed sets: green "Done" badge
+- Updated `skipRest`: plays a descending two-beep "swoosh" sound (880Hz→660Hz)
+- Updated `addRestTime`: plays a bright "ding" sound (1100Hz)
+- Skip auto-advances: after skip, restActive=false, so the first incomplete set
+  lights up as "Next" — guiding the user to the next set to do
+- When navigating to a new exercise, activeSetIdx recomputes to that exercise's
+  first incomplete set
+- Lint passes
+
+Stage Summary:
+- Verified via Agent Browser:
+  - Set 1 shows "Next" badge on workout start
+  - Tapping Set 1 → rest starts → ALL sets disabled (show "Resting…")
+  - Clicking Skip → rest ends → Set 2 auto-highlighted as "Next"
+  - Clicking +15s → timer extends, sets stay disabled, ding sound
+  - Completing last set + Skip → no crash, "Next Exercise" available
+  - Moving to next exercise → Set 1 of new exercise highlighted as "Next"
+- Sounds: set complete (660Hz), skip (880→660Hz swoosh), +sec (1100Hz ding),
+  rest end (triple beep 880/880/1100Hz)

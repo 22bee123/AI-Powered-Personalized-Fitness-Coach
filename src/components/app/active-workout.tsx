@@ -127,6 +127,11 @@ export function ActiveWorkout({ session, onExit, onComplete }: ActiveWorkoutProp
   const currentSetsCompleted = currentSets.filter(Boolean).length
   const allCurrentDone = currentSetsCompleted === currentExercise.sets
 
+  // The "active" set is the first incomplete one — this is the set the user
+  // should do next. It gets a highlight so they always know where they are.
+  // After completing a set (or skipping rest), this naturally advances.
+  const activeSetIdx = currentSets.findIndex((done) => !done)
+
   // Total sets tracking
   const totalSetsTarget = exercises.reduce((sum, ex) => sum + ex.sets, 0)
   const totalSetsCompleted = setsDone.reduce(
@@ -224,6 +229,9 @@ export function ActiveWorkout({ session, onExit, onComplete }: ActiveWorkoutProp
     setRestActive(false)
     setRestRemaining(0)
     restEndRef.current = null
+    // "Skip" sound: two quick descending beeps (swoosh feeling)
+    beep(880, 100, 0.25)
+    setTimeout(() => beep(660, 150, 0.25), 110)
   }, [])
 
   const addRestTime = useCallback((seconds: number) => {
@@ -231,6 +239,8 @@ export function ActiveWorkout({ session, onExit, onComplete }: ActiveWorkoutProp
     restEndRef.current += seconds * 1000
     setRestRemaining((prev) => prev + seconds)
     setRestTotal((prev) => prev + seconds)
+    // "Add time" sound: a single bright ding
+    beep(1100, 120, 0.2)
   }, [])
 
   const togglePause = useCallback(() => {
@@ -540,48 +550,66 @@ export function ActiveWorkout({ session, onExit, onComplete }: ActiveWorkoutProp
 
             {/* Set list */}
             <div className="space-y-2">
-              {currentSets.map((done, setIdx) => (
-                <button
-                  key={setIdx}
-                  onClick={() => toggleSet(setIdx)}
-                  className={cn(
-                    'flex items-center justify-between w-full rounded-xl border-2 p-3.5 transition-all active:scale-[0.98]',
-                    done
-                      ? 'border-emerald-500 bg-emerald-500/10'
-                      : 'border-border bg-card hover:border-emerald-300'
-                  )}
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={cn(
-                        'flex h-8 w-8 items-center justify-center rounded-lg border-2 transition-colors',
-                        done
-                          ? 'border-emerald-500 bg-emerald-500 text-white'
-                          : 'border-muted-foreground/40'
-                      )}
-                    >
-                      {done ? (
-                        <Check className="h-4 w-4" strokeWidth={3} />
-                      ) : (
-                        <span className="text-xs font-bold">{setIdx + 1}</span>
-                      )}
+              {currentSets.map((done, setIdx) => {
+                // The "active" set is the next one to do (first incomplete).
+                const isActive = setIdx === activeSetIdx && !done && !restActive
+                return (
+                  <button
+                    key={setIdx}
+                    onClick={() => toggleSet(setIdx)}
+                    disabled={restActive}
+                    className={cn(
+                      'flex items-center justify-between w-full rounded-xl border-2 p-3.5 transition-all',
+                      restActive && 'opacity-50 cursor-not-allowed',
+                      done
+                        ? 'border-emerald-500 bg-emerald-500/10'
+                        : isActive
+                          ? 'border-emerald-500 bg-emerald-500/5 ring-2 ring-emerald-400/40 shadow-sm'
+                          : restActive
+                            ? 'border-border bg-card'
+                            : 'border-border bg-card hover:border-emerald-300 active:scale-[0.98]'
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={cn(
+                          'flex h-8 w-8 items-center justify-center rounded-lg border-2 transition-colors',
+                          done
+                            ? 'border-emerald-500 bg-emerald-500 text-white'
+                            : isActive
+                              ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600'
+                              : 'border-muted-foreground/40'
+                        )}
+                      >
+                        {done ? (
+                          <Check className="h-4 w-4" strokeWidth={3} />
+                        ) : (
+                          <span className="text-xs font-bold">{setIdx + 1}</span>
+                        )}
+                      </div>
+                      <div className="text-left">
+                        <p className="font-semibold text-sm">Set {setIdx + 1}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {currentExercise.reps} reps
+                        </p>
+                      </div>
                     </div>
-                    <div className="text-left">
-                      <p className="font-semibold text-sm">Set {setIdx + 1}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {currentExercise.reps} reps
-                      </p>
-                    </div>
-                  </div>
-                  {done ? (
-                    <Badge className="bg-emerald-500/15 text-emerald-600 border-0">
-                      Done
-                    </Badge>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">Tap to log</span>
-                  )}
-                </button>
-              ))}
+                    {done ? (
+                      <Badge className="bg-emerald-500/15 text-emerald-600 border-0">
+                        Done
+                      </Badge>
+                    ) : isActive ? (
+                      <Badge className="bg-emerald-500 text-white border-0 animate-pulse">
+                        Next
+                      </Badge>
+                    ) : restActive ? (
+                      <span className="text-xs text-muted-foreground">Resting…</span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">Tap to log</span>
+                    )}
+                  </button>
+                )
+              })}
             </div>
 
             {/* Start rest manually (if not active and not all done) */}
